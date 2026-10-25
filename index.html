@@ -52,11 +52,15 @@ button.t.on{ background:#ffd34d; box-shadow:0 0 0 4px #ff9f1a; }
 #wrap canvas{ position:absolute; inset:0; width:100%; height:100%; pointer-events:none; }
 
 /* 色盤：手機隱藏(改用彈出面板)，平板直接攤開 */
-#palette{ grid-area:p; display:none; }
-body.tablet #palette{ display:grid; gap:6px; padding:8px; background:var(--bar); overflow:auto;
+#palette{ display:none; }
+#side{ grid-area:p; display:none; flex-direction:column; background:var(--bar); min-height:0; overflow:auto; }
+body.tablet #side{ display:flex; }
+#extra{ display:none; }
+body.tablet #palette{ display:grid; gap:6px; padding:8px; overflow:auto;
   grid-template-columns:repeat(auto-fill,var(--btn)); justify-content:center; max-height:38vh; }
 @media (orientation:landscape){
-  body.tablet #palette{ grid-template-columns:repeat(6,var(--btn)); max-height:none; align-content:start; }
+  body.tablet #palette{ grid-template-columns:repeat(6,var(--btn)); max-height:none; align-content:start; flex:0 0 auto; }
+  body.tablet #extra{ display:block; padding:4px 8px 14px; }
 }
 body.tablet #colorBtn{ display:none; }
 .sw{ width:var(--btn); height:var(--btn); border-radius:50%; border:3px solid rgba(0,0,0,.15);
@@ -66,8 +70,8 @@ body.tablet #colorBtn{ display:none; }
 /* 各種覆蓋層 */
 .ov{ position:fixed; inset:0; display:none; align-items:center; justify-content:center; z-index:20; }
 .ov.show{ display:flex; }
-#palOverlay,#brushOverlay,#homeOverlay{ background:rgba(0,0,0,.4); }
-#palGrid,#brushGrid{ background:#fff; border-radius:20px; padding:14px; display:grid; gap:8px;
+#palOverlay,#brushOverlay,#stampOverlay,#shapeOverlay,#homeOverlay{ background:rgba(0,0,0,.4); }
+#palGrid,#brushGrid,#stampGrid,#shapeGrid{ background:#fff; border-radius:20px; padding:14px; display:grid; gap:8px;
   grid-template-columns:repeat(auto-fill,var(--btn)); justify-content:center;
   width:min(92vw,560px); max-height:85vh; overflow:auto; }
 #homeBox{ display:flex; flex-direction:column; align-items:center; gap:12px; max-width:94vw; max-height:92vh; }
@@ -146,6 +150,37 @@ button.t.danger{ background:#ffb3b3; }
 #loading .nm{ font-size:22px; color:#3f4670; font-weight:700; }
 #loading .spin{ font-size:56px; animation:sp 1s linear infinite; }
 @keyframes sp{ to{ transform:rotate(360deg); } }
+
+/* 平板：上方工具列靠攏；左側筆刷欄貼近畫布 */
+body.tablet #barA{ justify-content:center; gap:22px; }
+#stage > #barB{ position:absolute; top:50%; transform:translateY(-50%); flex-direction:column; justify-content:flex-start; overflow:visible;
+  border-radius:22px; padding:8px; box-shadow:0 3px 10px rgba(0,0,0,.14); z-index:3; }
+/* 色盤下方：目前的筆、今日推薦色 */
+#extra .xt{ font-size:15px; font-weight:700; color:#6d4c41; margin:8px 0 4px; }
+#xBrush{ width:100%; height:52px; border:none; border-radius:18px; background:#fff; font-size:22px; font-weight:700; color:#444;
+  display:flex; align-items:center; justify-content:center; gap:12px; box-shadow:0 3px 0 rgba(0,0,0,.15); cursor:pointer; touch-action:manipulation; }
+#xDaily{ display:flex; flex-wrap:wrap; gap:6px; justify-content:center; }
+#xDaily .sw{ width:50px; height:50px; }
+/* 對稱畫筆的中線、獎勵動畫 */
+#symLine{ position:absolute; top:0; bottom:0; left:50%; border-left:3px dashed rgba(255,70,70,.6); pointer-events:none; display:none; z-index:2; }
+#wrap.sym #symLine{ display:block; }
+#fx{ position:fixed; inset:0; width:100%; height:100%; pointer-events:none; z-index:70; display:none; }
+#praise{ position:fixed; left:50%; top:20%; transform:translateX(-50%); z-index:71; pointer-events:none; opacity:0; white-space:nowrap;
+  font-size:min(12vmin,64px); font-weight:900; color:#fff; text-shadow:0 4px 0 #ff9f1a,0 0 18px rgba(0,0,0,.4); }
+#praise.show{ animation:praise 2.4s ease forwards; }
+@keyframes praise{ 0%{opacity:0;transform:translateX(-50%) scale(.3)} 15%{opacity:1;transform:translateX(-50%) scale(1.15)} 25%{transform:translateX(-50%) scale(1)} 80%{opacity:1} 100%{opacity:0;transform:translateX(-50%) translateY(-24px)} }
+.fl{ position:fixed; z-index:70; pointer-events:none; font-size:min(11vmin,64px); }
+@keyframes rise{ from{transform:translateY(0) rotate(-8deg)} to{transform:translateY(-125vh) rotate(10deg)} }
+@keyframes fall{ from{transform:translateY(0) rotate(0)} to{transform:translateY(125vh) rotate(360deg)} }
+.lk.snd{ background:#8d6e63; font-size:22px; }
+
+/* 幾何形狀物件 */
+#objBar{ position:absolute; top:6px; left:50%; transform:translateX(-50%); display:none; gap:8px; z-index:5; background:rgba(255,255,255,.85); padding:6px; border-radius:20px; box-shadow:0 2px 8px rgba(0,0,0,.2); }
+#objBar.show{ display:flex; }
+#objBar button.t{ width:52px; height:52px; min-width:52px; min-height:52px; font-size:26px; border-radius:14px; }
+#shapeGrid{ grid-template-columns:repeat(auto-fill,84px) !important; }
+#shapeGrid button{ width:84px; height:88px; border:none; border-radius:16px; background:#f4f8ff; box-shadow:0 3px 0 rgba(0,0,0,.15); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; padding:0; cursor:pointer; touch-action:manipulation; font-size:12px; color:#444; font-weight:700; }
+@media (orientation:portrait){ body:not(.tablet).has-shape #barB button.t{ width:52px; min-width:52px; height:52px; min-height:52px; font-size:28px; } }
 </style>
 </head>
 <body>
@@ -158,27 +193,33 @@ button.t.danger{ background:#ffb3b3; }
     <button class="t" id="doneBtn" aria-label="完成">✅</button>
   </div>
   <div id="stage">
+    <div id="objBar"><button class="t" id="objDel" aria-label="刪除">🗑️</button><button class="t" id="objCopy" aria-label="複製">📋</button><button class="t" id="objFront" aria-label="移到最前面">⬆️</button><button class="t" id="objOk" aria-label="放好">✔️</button></div>
     <div id="wrap">
       <canvas id="paint"></canvas>  <!-- 顏料層（最下） -->
       <canvas id="live"></canvas>   <!-- 正在畫的這一筆 -->
+      <canvas id="objc"></canvas>   <!-- 幾何形狀物件（可移動、縮放、旋轉） -->
       <canvas id="line"></canvas>   <!-- 線稿層（最上） -->
+      <div id="symLine"></div>
     </div>
   </div>
-  <div id="palette"></div>
+  <div id="side"><div id="palette"></div><div id="extra"><div class="xt">目前的筆</div><button id="xBrush"></button><div class="xt">🌈 今日推薦色</div><div id="xDaily"></div></div></div>
   <div class="bar" id="barB">
     <button class="t" id="colorBtn" aria-label="顏色"><span id="colorDot"></span></button>
   </div>
 </div>
 <div id="palOverlay" class="ov"><div id="palGrid"></div></div>
 <div id="brushOverlay" class="ov"><div id="brushGrid"></div></div>
+<div id="stampOverlay" class="ov"><div id="stampGrid"></div></div>
+<div id="shapeOverlay" class="ov"><div id="shapeGrid"></div></div>
 <div id="homeOverlay" class="ov"><div id="homeBox"><div id="brand"><img src="logo.png" alt="揚名創思空間"><div class="bn"><b>揚名 ColorPad</b><span>揚名創思空間</span></div></div><button id="updBtn">🔄 有新版本！請爸爸媽媽長按 1.5 秒更新<i></i></button><div id="homeHead"></div><div id="pages"></div>
-<div id="homeFoot"><div class="links"><button class="lk fb" id="lkFb" aria-label="Facebook 粉絲專頁（長按開啟）">f<i></i></button><button class="lk ig" id="lkIg" aria-label="Instagram（長按開啟）">IG<i></i></button></div><div>© 2026 揚名創思空間 All rights reserved</div><div style="font-size:12px;opacity:.85">連結請爸爸媽媽長按約 1.5 秒開啟</div></div></div></div>
+<div id="homeFoot"><div class="links"><button class="lk fb" id="lkFb" aria-label="Facebook 粉絲專頁（長按開啟）">f<i></i></button><button class="lk ig" id="lkIg" aria-label="Instagram（長按開啟）">IG<i></i></button><button class="lk snd" id="lkSnd" aria-label="音效開關">🔊</button></div><div>© 2026 揚名創思空間 All rights reserved</div><div style="font-size:12px;opacity:.85">連結請爸爸媽媽長按約 1.5 秒開啟</div></div></div></div>
 <div id="hint"></div>
 <div id="actOverlay" class="ov"><div id="actBox"><div id="actPrev"></div><div id="actHint"></div><div id="actBtns"></div></div></div>
 <div id="moveOverlay" class="ov"><div id="moveBox"></div></div>
 <div id="nameOverlay" class="ov"><div id="nameBox"><div id="nameIcon">📁</div><input id="nameIn" maxlength="20" placeholder="名稱" autocomplete="off"><div id="nameBtns"><button class="t" id="nameNo" aria-label="取消">❌</button><button class="t" id="nameYes" aria-label="確定">✅</button></div></div></div>
 <div id="pickOverlay" class="ov"><div id="pickBox"><canvas id="pkSV"></canvas><canvas id="pkHue"></canvas><div id="pkRow"><div id="pkPrev"></div><button class="t" id="pkNo" aria-label="取消">❌</button><button class="t" id="pkDel" aria-label="刪除顏色">🗑️</button><button class="t" id="pkYes" aria-label="確定">✅</button></div></div></div>
 <input type="file" id="fileIn" accept="image/png,image/jpeg" hidden>
+<canvas id="fx"></canvas><div id="praise"></div>
 <div id="cheer" class="ov"><div class="star">⭐</div></div>
 <div id="loading" class="ov show"><img src="logo.png" alt=""><div class="nm">揚名 ColorPad</div><div class="spin">🎨</div></div>
 
@@ -210,6 +251,8 @@ const ART = (() => {
   };
   // 花瓣圈：n 片橢圓花瓣繞中心
   const F = d => ['f', d], L = d => ['l', d], K = d => ['k', d];
+  const FONT = '"PingFang TC","Noto Sans CJK TC","Microsoft JhengHei","Heiti TC","Arial Rounded MT Bold",system-ui,sans-serif';
+  const T = (str, x, y, size) => ['t', str, x, y, size];     // 文字標籤（黑色實心）
   const M = (m, ops) => ['g', m, ops];
   const rot = (deg, cx, cy, ...ops) => {
     const a = deg * Math.PI / 180, c = Math.cos(a), s = Math.sin(a);
@@ -230,6 +273,7 @@ const ART = (() => {
     for (const o of ops) {
       if (o[0] === 'g') { ctx.save(); ctx.transform(...o[1]); run(ctx, o[2]); ctx.restore(); }
       else if (Array.isArray(o[0])) run(ctx, o);
+      else if (o[0] === 't') { ctx.save(); ctx.fillStyle = '#000'; ctx.font = `800 ${o[4]}px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic'; ctx.fillText(o[1], o[2], o[3]); ctx.restore(); }
       else {
         const p = new Path2D(o[1]);
         if (o[0] === 'l') ctx.stroke(p);
@@ -244,7 +288,6 @@ const ART = (() => {
     ctx.translate(size * 0.04, size * 0.04); ctx.scale(size * 0.92 / 100, size * 0.92 / 100);   // 四周留白
     ctx.lineWidth = lw * 100 / (size * 0.92); ctx.lineJoin = 'round'; ctx.lineCap = 'round'; ctx.strokeStyle = '#000';
     if (item.glyph) {
-      const FONT = '"PingFang TC","Noto Sans CJK TC","Microsoft JhengHei","Heiti TC","Arial Rounded MT Bold",system-ui,sans-serif';
       let fs = 100; ctx.font = `900 ${fs}px ${FONT}`;
       let m = ctx.measureText(item.glyph);
       const w = m.width, h = m.actualBoundingBoxAscent + m.actualBoundingBoxDescent;
@@ -257,7 +300,7 @@ const ART = (() => {
     } else run(ctx, item.ops());
     ctx.restore();
   }
-  const H = { Fe, ell, cir, rect, poly, star, bumpy, F, L, K, rot, flip, flipAt, at, sc, eyes, petals, M };
+  const H = { T, Fe, ell, cir, rect, poly, star, bumpy, F, L, K, rot, flip, flipAt, at, sc, eyes, petals, M };
   return { H, render, run, cats: [] };
 })();
 
@@ -929,8 +972,9 @@ let FILL_R = GAP + Math.round(LINE_PX * 0.6);           // 顏色往黑線底下
 const SIZES = [0.015, 0.035, 0.07];             // 三段粗細（相對畫布寬）
 const DOT_PX = [12, 22, 34];                     // 粗細按鈕上圓點大小
 
-const paint = $('paint'), live = $('live'), line = $('line'), wrap = $('wrap'), stage = $('stage');
-for (const c of [paint, live, line]) { c.width = S; c.height = S; }
+const paint = $('paint'), live = $('live'), line = $('line'), objc = $('objc'), wrap = $('wrap'), stage = $('stage');
+for (const c of [paint, live, line, objc]) { c.width = S; c.height = S; }
+const octx = objc.getContext('2d');
 const pctx = paint.getContext('2d');
 const lctx = live.getContext('2d');
 const nctx = line.getContext('2d');
@@ -1267,35 +1311,52 @@ const BRUSHES = {
 const brushWidth = () => SIZES[state.sizeIdx] * S;
 
 /* ===================== 6. 畫布：作畫流程 ===================== */
-const cur = { mask: null, brush: null };
+const cur = { brush: null, paths: [], sides: [] };
+// 每一筆最多兩條路徑（開啟對稱時，另一條是左右鏡像）；每條路徑落在各自的區域遮罩，同一區域就共用同一塊暫存畫布
+const sidePool = [0, 1].map(() => { const c = document.createElement('canvas'); c.width = c.height = 16; return { stroke: c, sctx: c.getContext('2d'), mask: null, M: 0, bb: null, dirty: null }; });
 let rafPending = false;
+const mir = p => ({ x: S - p.x, y: p.y });
 
 function startPaint(p) {
-  const id = regionAt(p.x, p.y);
-  if (!id) return false;
-  const m = cur.mask = getMask(id);
-  cur.M = Math.round(brushWidth() * 2 + S * 0.03);   // 一筆可能影響到的範圍（筆刷大小的 2 倍＋餘裕）
-  cur.bb = cur.dirty = null; grow(p);
-  if (stroke.width < m.w || stroke.height < m.h) {
-    stroke.width = Math.max(stroke.width, m.w); stroke.height = Math.max(stroke.height, m.h);
-    sctx = stroke.getContext('2d');
-  }
-  sctx.setTransform(1, 0, 0, 1, 0, 0);
-  sctx.shadowBlur = 0;
-  sctx.clearRect(0, 0, stroke.width, stroke.height);
-  sctx.setTransform(1, 0, 0, 1, -m.x, -m.y);
-  sctx.lineCap = 'round'; sctx.lineJoin = 'round';
+  cur.paths = []; cur.sides = [];
   cur.brush = BRUSHES[state.tool];
-  cur.brush.begin(sctx, state.color, brushWidth());
+  for (const [q, isMir] of (state.sym ? [[p, false], [mir(p), true]] : [[p, false]])) {
+    const id = regionAt(q.x, q.y); if (!id) continue;
+    const m = getMask(id);
+    let sd = cur.sides.find(s => s.mask === m);
+    if (!sd) {
+      sd = sidePool[cur.sides.length];
+      sd.mask = m; sd.M = Math.round(brushWidth() * 2 + S * 0.03);   // 一筆可能影響到的範圍（筆刷大小的 2 倍＋餘裕）
+      sd.bb = sd.dirty = null;
+      const st = sd.stroke;
+      if (st.width < m.w || st.height < m.h) { st.width = Math.max(st.width, m.w); st.height = Math.max(st.height, m.h); sd.sctx = st.getContext('2d'); }
+      const c = sd.sctx;
+      c.setTransform(1, 0, 0, 1, 0, 0); c.shadowBlur = 0; c.clearRect(0, 0, st.width, st.height);
+      c.setTransform(1, 0, 0, 1, -m.x, -m.y); c.lineCap = 'round'; c.lineJoin = 'round';
+      cur.sides.push(sd);
+    }
+    cur.brush.begin(sd.sctx, state.color, brushWidth());
+    cur.paths.push({ sd, mir: isMir, bs });
+    grow(sd, q);
+  }
+  if (!cur.paths.length) return false;
   live.style.opacity = cur.brush.alpha;
   return true;
 }
 // 記錄這一筆碰到的範圍：bb＝整筆（復原用）、dirty＝自上次重畫後新增的範圍（重畫用）
-function grow(p) {
+function grow(sd, p) {
   for (const k of ['bb', 'dirty']) {
-    const b = cur[k];
-    if (!b) cur[k] = { x0: p.x, y0: p.y, x1: p.x, y1: p.y };
+    const b = sd[k];
+    if (!b) sd[k] = { x0: p.x, y0: p.y, x1: p.x, y1: p.y };
     else { if (p.x < b.x0) b.x0 = p.x; if (p.x > b.x1) b.x1 = p.x; if (p.y < b.y0) b.y0 = p.y; if (p.y > b.y1) b.y1 = p.y; }
+  }
+}
+// 畫一小段（有對稱時，兩條路徑各畫一次）
+function strokeSeg(a, b) {
+  for (const pt of cur.paths) {
+    const A = pt.mir ? mir(a) : a, B = pt.mir ? mir(b) : b;
+    bs = pt.bs; cur.brush.seg(pt.sd.sctx, A, B); pt.bs = bs;
+    grow(pt.sd, A); grow(pt.sd, B);
   }
 }
 // 範圍加上餘裕，並限制在遮罩內
@@ -1308,54 +1369,68 @@ function schedule() { if (!rafPending) { rafPending = true; requestAnimationFram
 // 把筆觸套上區域遮罩，顯示在 live 層（只重畫新增的範圍，大畫布也不會卡）
 function renderLive() {
   rafPending = false;
-  const m = cur.mask; if (!m || !cur.dirty) return;
-  const r = rectOf(cur.dirty, m, cur.M); cur.dirty = null;
-  if (!r) return;
-  lctx.save();                                        // 限制在這個範圍內，否則 destination-in 會把範圍外的筆跡也清掉
-  lctx.beginPath(); lctx.rect(r.x, r.y, r.w, r.h); lctx.clip();
-  lctx.globalCompositeOperation = 'source-over';
-  lctx.clearRect(r.x, r.y, r.w, r.h);
-  lctx.drawImage(stroke, r.x - m.x, r.y - m.y, r.w, r.h, r.x, r.y, r.w, r.h);
-  lctx.globalCompositeOperation = 'destination-in';
-  lctx.drawImage(m.canvas, r.x - m.x, r.y - m.y, r.w, r.h, r.x, r.y, r.w, r.h);
-  lctx.restore();
+  for (const sd of cur.sides) {
+    const m = sd.mask; if (!m || !sd.dirty) continue;
+    const r = rectOf(sd.dirty, m, sd.M); sd.dirty = null;
+    if (!r) continue;
+    lctx.save();                                        // 限制在這個範圍內，否則 destination-in 會把範圍外的筆跡也清掉
+    lctx.beginPath(); lctx.rect(r.x, r.y, r.w, r.h); lctx.clip();
+    lctx.globalCompositeOperation = 'source-over';
+    lctx.clearRect(r.x, r.y, r.w, r.h);
+    lctx.drawImage(sd.stroke, r.x - m.x, r.y - m.y, r.w, r.h, r.x, r.y, r.w, r.h);
+    lctx.globalCompositeOperation = 'destination-in';
+    lctx.drawImage(m.canvas, r.x - m.x, r.y - m.y, r.w, r.h, r.x, r.y, r.w, r.h);
+    lctx.restore();
+  }
 }
-// 一筆結束：合併到顏料層（合併前先存復原）
+// 一筆結束：合併到顏料層（合併前先存復原；兩邊的範圍合成一個矩形，只存一次）
 function commitPaint() {
   renderLive();
-  const m = cur.mask, r = rectOf(cur.bb, m, cur.M);
-  if (r) {
-    pushUndo(r.x, r.y, r.w, r.h);
+  let U = null;
+  for (const sd of cur.sides) {
+    const r = sd.bb && rectOf(sd.bb, sd.mask, sd.M); if (!r) continue;
+    if (!U) U = { x0: r.x, y0: r.y, x1: r.x + r.w, y1: r.y + r.h };
+    else { U.x0 = Math.min(U.x0, r.x); U.y0 = Math.min(U.y0, r.y); U.x1 = Math.max(U.x1, r.x + r.w); U.y1 = Math.max(U.y1, r.y + r.h); }
+  }
+  if (U) {
+    const x = U.x0, y = U.y0, w = U.x1 - U.x0, h = U.y1 - U.y0;
+    pushUndo(x, y, w, h);
     pctx.globalAlpha = cur.brush.alpha;
-    pctx.drawImage(live, r.x, r.y, r.w, r.h, r.x, r.y, r.w, r.h);
+    pctx.drawImage(live, x, y, w, h, x, y, w, h);
     pctx.globalAlpha = 1;
     markDirty();
   }
   lctx.clearRect(0, 0, S, S);
   live.style.opacity = 1;
-  cur.mask = null; cur.bb = cur.dirty = null;
+  for (const sd of cur.sides) { sd.mask = null; sd.bb = sd.dirty = null; }
+  cur.sides = []; cur.paths = [];
 }
 function eraseSeg(a, b) {
-  pctx.save();
-  pctx.globalCompositeOperation = 'destination-out';
-  pctx.lineCap = 'round'; pctx.lineJoin = 'round'; pctx.lineWidth = brushWidth() * 1.5;
-  pctx.beginPath(); pctx.moveTo(a.x, a.y); pctx.lineTo(b.x + 0.1, b.y); pctx.stroke();
-  pctx.restore();
+  for (const [A, B] of (state.sym ? [[a, b], [mir(a), mir(b)]] : [[a, b]])) {
+    pctx.save();
+    pctx.globalCompositeOperation = 'destination-out';
+    pctx.lineCap = 'round'; pctx.lineJoin = 'round'; pctx.lineWidth = brushWidth() * 1.5;
+    pctx.beginPath(); pctx.moveTo(A.x, A.y); pctx.lineTo(B.x + 0.1, B.y); pctx.stroke();
+    pctx.restore();
+  }
 }
 
 /* 復原：只存被改動的區域，節省記憶體 */
-const undoStack = []; let undoBytes = 0; const UNDO_MAX = 100e6;
-function pushUndo(x, y, w, h) {
+const undoStack = []; let undoBytes = 0; const UNDO_MAX = 100e6; let undoGroup = 0;
+function pushUndo(x, y, w, h, g) {
   const img = pctx.getImageData(x, y, w, h);
-  undoStack.push({ x, y, img }); undoBytes += w * h * 4;
-  while (undoStack.length > 1 && (undoBytes > UNDO_MAX || undoStack.length > 30)) {
+  undoStack.push({ x, y, img, g: g || ++undoGroup }); undoBytes += w * h * 4;
+  while (undoStack.length > 1 && (undoBytes > UNDO_MAX || undoStack.length > 60)) {
     const o = undoStack.shift(); undoBytes -= o.img.width * o.img.height * 4;
   }
 }
 function undo() {
-  const o = undoStack.pop(); if (!o) return;
-  undoBytes -= o.img.width * o.img.height * 4;
-  pctx.putImageData(o.img, o.x, o.y);
+  const top = undoStack[undoStack.length - 1]; if (!top) return;
+  const g = top.g;                                      // 同一組（例如對稱的兩個印章）一起復原
+  while (undoStack.length && undoStack[undoStack.length - 1].g === g) {
+    const o = undoStack.pop(); undoBytes -= o.img.width * o.img.height * 4;
+    pctx.putImageData(o.img, o.x, o.y);
+  }
   markDirty();
 }
 
@@ -1380,8 +1455,15 @@ wrap.addEventListener('pointerdown', e => {
   e.preventDefault();
   if (!labels || !accept(e)) return;
   const p = toXY(e);
+  if (state.tool === 'shape') {                                            // 形狀：選取、移動、縮放、旋轉
+    if (!shapeDown(p)) return;
+    mode = 'shape'; activeId = e.pointerId; last = p;
+    try { wrap.setPointerCapture(e.pointerId); } catch (_) {}
+    return;
+  }
+  if (state.tool === 'stamp') { stampAt(p); return; }                       // 印章：點一下蓋一個
   if (state.tool === 'eraser') { pushUndo(0, 0, S, S); mode = 'erase'; eraseSeg(p, p); }
-  else { if (!startPaint(p)) return; mode = 'paint'; cur.brush.seg(sctx, p, p); schedule(); }
+  else { if (!startPaint(p)) return; mode = 'paint'; strokeSeg(p, p); schedule(); }
   activeId = e.pointerId; last = p;
   try { wrap.setPointerCapture(e.pointerId); } catch (_) {}
 });
@@ -1391,7 +1473,7 @@ wrap.addEventListener('pointermove', e => {
   const list = (e.getCoalescedEvents && e.getCoalescedEvents().length) ? e.getCoalescedEvents() : [e];
   for (const ev of list) {
     const p = toXY(ev);
-    if (mode === 'erase') eraseSeg(last, p); else { cur.brush.seg(sctx, last, p); grow(last); grow(p); }
+    if (mode === 'erase') eraseSeg(last, p); else if (mode === 'shape') shapeDrag(p); else strokeSeg(last, p);
     last = p;
   }
   if (mode === 'paint') schedule();
@@ -1399,12 +1481,254 @@ wrap.addEventListener('pointermove', e => {
 function endStroke(e) {
   if (e.pointerId !== activeId) return;
   if (mode === 'paint') commitPaint();
+  else if (mode === 'shape') shapeEnd();
   else if (mode === 'erase') markDirty();
   activeId = null; mode = null;
 }
 wrap.addEventListener('pointerup', endStroke);
 wrap.addEventListener('pointercancel', endStroke);
 wrap.addEventListener('lostpointercapture', endStroke);
+
+
+
+/* ===================== 幾何形狀物件（空白畫布專用）：放上去、拖曳移動、拉角縮放、轉圈旋轉；換工具時固定到畫布上 ===================== */
+const SHAPE_LIST = (() => {
+  const reg = (n, start) => { let d = ''; for (let i = 0; i < n; i++) { const a = (start + i * 360 / n) * Math.PI / 180; d += (i ? 'L' : 'M') + (50 + 50 * Math.cos(a)).toFixed(1) + ' ' + (50 + 50 * Math.sin(a)).toFixed(1); } return d + 'z'; };
+  const star = (() => { let d = ''; for (let i = 0; i < 10; i++) { const a = (-90 + i * 36) * Math.PI / 180, r = i % 2 ? 20 : 50; d += (i ? 'L' : 'M') + (50 + r * Math.cos(a)).toFixed(1) + ' ' + (54 + r * Math.sin(a)).toFixed(1); } return d + 'z'; })();
+  const circle = 'M0 50A50 50 0 1 0 100 50A50 50 0 1 0 0 50z';
+  return [
+    { id: 'rtri', name: '直角三角形', d: 'M0 0V100H100z', w: 0.28, h: 0.28 },
+    { id: 'square', name: '正方形', d: 'M0 0H100V100H0z', w: 0.26, h: 0.26 },
+    { id: 'rect', name: '長方形', d: 'M0 0H100V100H0z', w: 0.38, h: 0.22 },
+    { id: 'tri', name: '正三角形', d: 'M50 0L0 100H100z', w: 0.32, h: 0.277 },
+    { id: 'pent', name: '正五邊形', d: reg(5, -90), w: 0.3, h: 0.3 },
+    { id: 'hex', name: '正六邊形', d: reg(6, 0), w: 0.3, h: 0.3 },
+    { id: 'oct', name: '正八邊形', d: reg(8, -22.5), w: 0.28, h: 0.28 },
+    { id: 'trap', name: '梯形', d: 'M25 0H75L100 100H0z', w: 0.36, h: 0.24 },
+    { id: 'rhombus', name: '菱形', d: 'M50 0L100 50L50 100L0 50z', w: 0.3, h: 0.3 },
+    { id: 'para', name: '平行四邊形', d: 'M25 0H100L75 100H0z', w: 0.38, h: 0.24 },
+    { id: 'circle', name: '圓形', d: circle, w: 0.26, h: 0.26 },
+    { id: 'ellipse', name: '橢圓形', d: circle, w: 0.38, h: 0.24 },
+    { id: 'star', name: '星形', d: star, w: 0.3, h: 0.3 },
+    { id: 'heart', name: '愛心形', d: 'M50 100C16 76 2 56 2 38C2 20 14 8 29 8C40 8 47 14 50 22C53 14 60 8 71 8C86 8 98 20 98 38C98 56 84 76 50 100z', w: 0.28, h: 0.26 },
+    { id: 'thumb', name: '讚', d: 'M0 48H22V94H0zM27 50C40 44 47 31 50 17C52 6 66 8 64 23C63 32 61 39 59 43H83C92 43 95 53 88 58C95 63 95 73 88 77C92 83 88 92 80 92H27z', e: 'M62 58H85M64 74H86', w: 0.28, h: 0.3 }
+  ].map(s => ({ ...s, p: new Path2D(s.d), pe: s.e ? new Path2D(s.e) : null }));
+})();
+const SHAPE_BY = Object.fromEntries(SHAPE_LIST.map(s => [s.id, s]));
+let objs = [], objHist = [], selId = null, objSeq = 1, drag = null;
+const selObj = () => objs.find(o => o.id === selId) || null;
+const snapObjs = () => JSON.stringify(objs);
+function pushHist(s) { objHist.push(s || snapObjs()); if (objHist.length > 40) objHist.shift(); }
+function restoreHist() {
+  const s = objHist.pop(); if (s == null) return;
+  objs = JSON.parse(s); if (!selObj()) selId = null;
+  renderObjs(); updateObjBar(); markDirty();
+}
+function xf(o, lx, ly) { const c = Math.cos(o.rot), s = Math.sin(o.rot); return { x: o.x + c * lx - s * ly, y: o.y + s * lx + c * ly }; }   // 物件座標 → 畫布座標
+function objPaths(o) {
+  const sh = SHAPE_BY[o.t], m = new DOMMatrix().translate(o.x, o.y).rotate(o.rot * 180 / Math.PI).scale(o.w / 100, o.h / 100).translate(-50, -50);
+  const p = new Path2D(); p.addPath(sh.p, m);
+  let e = null; if (sh.pe) { e = new Path2D(); e.addPath(sh.pe, m); }
+  return { p, e };
+}
+function drawObjs(ctx) {
+  ctx.save(); ctx.lineJoin = 'round'; ctx.lineCap = 'round'; ctx.lineWidth = LINE_PX * 0.8; ctx.strokeStyle = '#222';
+  for (const o of objs) { const { p, e } = objPaths(o); ctx.fillStyle = o.fill; ctx.fill(p); ctx.stroke(p); if (e) ctx.stroke(e); }
+  ctx.restore();
+}
+const HR = () => S * 0.026;                                  // 把手大小
+function handles(o) {
+  return { br: xf(o, o.w / 2, o.h / 2), rw: xf(o, o.w / 2, 0), bh: xf(o, 0, o.h / 2), rot: xf(o, 0, -o.h / 2 - S * 0.06) };
+}
+function renderObjs() {
+  octx.clearRect(0, 0, S, S);
+  drawObjs(octx);
+  const o = state.tool === 'shape' ? selObj() : null; if (!o) return;
+  const c = [xf(o, -o.w / 2, -o.h / 2), xf(o, o.w / 2, -o.h / 2), xf(o, o.w / 2, o.h / 2), xf(o, -o.w / 2, o.h / 2)], h = handles(o), top = xf(o, 0, -o.h / 2);
+  octx.save();
+  octx.strokeStyle = '#2979ff'; octx.lineWidth = S * 0.004; octx.setLineDash([S * 0.012, S * 0.008]);
+  octx.beginPath(); octx.moveTo(c[0].x, c[0].y); for (let i = 1; i < 4; i++) octx.lineTo(c[i].x, c[i].y); octx.closePath(); octx.stroke();
+  octx.setLineDash([]); octx.beginPath(); octx.moveTo(top.x, top.y); octx.lineTo(h.rot.x, h.rot.y); octx.stroke();
+  for (const k in h) {
+    octx.beginPath();
+    if (k === 'rot') octx.arc(h.rot.x, h.rot.y, HR(), 0, 7); else octx.rect(h[k].x - HR() * 0.85, h[k].y - HR() * 0.85, HR() * 1.7, HR() * 1.7);
+    octx.fillStyle = k === 'rot' ? '#ffd34d' : '#fff'; octx.fill(); octx.lineWidth = S * 0.005; octx.stroke();
+  }
+  octx.restore();
+}
+function hitObj(o, p) {
+  const { p: path } = objPaths(o); octx.save(); octx.lineWidth = LINE_PX * 2;
+  const r = octx.isPointInPath(path, p.x, p.y) || octx.isPointInStroke(path, p.x, p.y); octx.restore(); return r;
+}
+function addObj(t) {
+  if (objs.length >= 30) { showHint('形狀最多 30 個，先按 ✔️ 放好吧'); return; }
+  const sh = SHAPE_BY[t]; pushHist();
+  const o = { id: objSeq++, t, x: S / 2 + rnd(-S * 0.06, S * 0.06), y: S / 2 + rnd(-S * 0.06, S * 0.06), w: S * sh.w, h: S * sh.h, rot: 0, fill: state.color };
+  objs.push(o); selId = o.id; renderObjs(); updateObjBar(); markDirty(); sfxPop();
+}
+function shapeDown(p) {                                      // 回傳 true＝開始拖曳
+  const o = selObj();
+  if (o) {
+    const h = handles(o);
+    for (const k of ['rot', 'br', 'rw', 'bh']) if (Math.hypot(p.x - h[k].x, p.y - h[k].y) < S * 0.05) {
+      drag = { kind: k, o, before: snapObjs(), d0: Math.hypot(p.x - o.x, p.y - o.y) || 1, w0: o.w, h0: o.h }; return true;
+    }
+  }
+  for (let i = objs.length - 1; i >= 0; i--) if (hitObj(objs[i], p)) {
+    selId = objs[i].id; const q = objs[i];
+    drag = { kind: 'move', o: q, before: snapObjs(), dx: p.x - q.x, dy: p.y - q.y };
+    renderObjs(); updateObjBar(); return true;
+  }
+  selId = null; renderObjs(); updateObjBar(); return false;   // 點空白處＝取消選取
+}
+function shapeDrag(p) {
+  if (!drag) return;
+  const o = drag.o, MIN = S * 0.05, MAX = S * 1.2, cl = v => Math.max(MIN, Math.min(MAX, v));
+  if (drag.kind === 'move') { o.x = Math.max(S * 0.05, Math.min(S * 0.95, p.x - drag.dx)); o.y = Math.max(S * 0.05, Math.min(S * 0.95, p.y - drag.dy)); }
+  else if (drag.kind === 'br') { const k = Math.hypot(p.x - o.x, p.y - o.y) / drag.d0; o.w = cl(drag.w0 * k); o.h = cl(drag.h0 * k); }
+  else if (drag.kind === 'rw') o.w = cl(2 * ((p.x - o.x) * Math.cos(o.rot) + (p.y - o.y) * Math.sin(o.rot)));
+  else if (drag.kind === 'bh') o.h = cl(2 * (-(p.x - o.x) * Math.sin(o.rot) + (p.y - o.y) * Math.cos(o.rot)));
+  else if (drag.kind === 'rot') {
+    let deg = (Math.atan2(p.y - o.y, p.x - o.x) + Math.PI / 2) * 180 / Math.PI;
+    deg = ((deg + 180) % 360 + 360) % 360 - 180;
+    const r = Math.round(deg / 15) * 15; if (Math.abs(deg - r) < 4) deg = r;          // 接近 15 度的倍數就吸附
+    o.rot = deg * Math.PI / 180;
+  }
+  renderObjs();
+}
+function shapeEnd() {
+  if (drag && snapObjs() !== drag.before) { pushHist(drag.before); markDirty(); }
+  drag = null;
+}
+// 固定到畫布：物件變成顏料（可以用復原一次拿掉），之後可以在上面塗色
+function flattenObjects() {
+  if (!objs.length) return;
+  let x0 = S, y0 = S, x1 = 0, y1 = 0;
+  for (const o of objs) for (const [a, b] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) {
+    const q = xf(o, a * o.w / 2, b * o.h / 2); x0 = Math.min(x0, q.x); y0 = Math.min(y0, q.y); x1 = Math.max(x1, q.x); y1 = Math.max(y1, q.y);
+  }
+  const m = LINE_PX * 2; x0 = Math.max(0, Math.floor(x0 - m)); y0 = Math.max(0, Math.floor(y0 - m)); x1 = Math.min(S, Math.ceil(x1 + m)); y1 = Math.min(S, Math.ceil(y1 + m));
+  if (x1 > x0 && y1 > y0) pushUndo(x0, y0, x1 - x0, y1 - y0);
+  drawObjs(pctx);
+  objs = []; objHist = []; selId = null; drag = null;
+  renderObjs(); updateObjBar(); markDirty();
+}
+function updateObjBar() { $('objBar').classList.toggle('show', state.tool === 'shape' && !!selObj()); }
+$('objDel').onclick = () => { const o = selObj(); if (!o) return; pushHist(); objs.splice(objs.indexOf(o), 1); selId = null; renderObjs(); updateObjBar(); markDirty(); };
+$('objCopy').onclick = () => {
+  const o = selObj(); if (!o) return; if (objs.length >= 30) { showHint('形狀最多 30 個'); return; }
+  pushHist(); const c = { ...o, id: objSeq++, x: o.x + S * 0.05, y: o.y + S * 0.05 }; objs.push(c); selId = c.id; renderObjs(); markDirty();
+};
+$('objFront').onclick = () => { const o = selObj(); if (!o) return; pushHist(); objs.splice(objs.indexOf(o), 1); objs.push(o); renderObjs(); markDirty(); };
+$('objOk').onclick = () => { flattenObjects(); setTool(state.lastBrush); };
+function paintBlob(cb) {                                     // 存檔用：顏料層＋還沒固定的形狀
+  if (!objs.length) { paint.toBlob(cb, 'image/png'); return; }
+  const t = document.createElement('canvas'); t.width = t.height = S;
+  const x = t.getContext('2d'); x.drawImage(paint, 0, 0); drawObjs(x); t.toBlob(cb, 'image/png');
+}
+
+/* ===================== 印章：點一下蓋一個圖案（只蓋在點到的區域內，對稱時左右各蓋一個） ===================== */
+const STAMPS = (() => {
+  const P = d => new Path2D(d), ST = ART.H.star;
+  const blob = (c, paths, color) => {                  // 先用粗線畫外框，再填色：多個圖形疊在一起也只有外輪廓
+    c.fillStyle = color; c.strokeStyle = 'rgba(0,0,0,.45)'; c.lineWidth = 0.16;
+    for (const p of paths) c.stroke(p);
+    for (const p of paths) c.fill(p);
+  };
+  const circ = (x, y, r) => { const p = new Path2D(); p.arc(x, y, r, 0, 7); return p; };
+  return {
+    star: { icon: '⭐', draw: (c, col) => blob(c, [P(ST(0, 0.05, 1, 0.46, 5))], col) },
+    heart: { icon: '❤️', draw: (c, col) => blob(c, [P('M0 .85C-1.3 .05 -1 -.85 -.5 -.9C-.2 -.95 0 -.7 0 -.5C0 -.7 .2 -.95 .5 -.9C1 -.8 1.3 .05 0 .85z')], col) },
+    flower: { icon: '🌸', draw: (c, col) => { const ps = []; for (let i = 0; i < 5; i++) { const a = i * 1.2566 - 1.57; ps.push(circ(Math.cos(a) * 0.55, Math.sin(a) * 0.55, 0.38)); } blob(c, ps, col); blob(c, [circ(0, 0, 0.3)], '#ffd84d'); } },
+    sparkle: { icon: '✨', draw: (c, col) => blob(c, [P(ST(0, 0, 1, 0.26, 4))], col) },
+    moon: { icon: '🌙', draw: (c, col) => blob(c, [P('M.35 -.95A1 1 0 1 0 .35 .95A.78 .78 0 1 1 .35 -.95z')], col) },
+    cloud: { icon: '☁️', draw: (c, col) => blob(c, [circ(-0.45, 0.1, 0.4), circ(0.05, -0.15, 0.5), circ(0.5, 0.12, 0.38), P('M-.45 .5H.5V.1H-.45z')], col) },
+    smile: { icon: '😊', draw: (c, col) => { blob(c, [circ(0, 0, 0.95)], col); c.fillStyle = '#222'; c.beginPath(); c.arc(-0.33, -0.2, 0.11, 0, 7); c.arc(0.33, -0.2, 0.11, 0, 7); c.fill(); c.strokeStyle = '#222'; c.lineWidth = 0.1; c.lineCap = 'round'; c.beginPath(); c.arc(0, 0.1, 0.5, 0.35, 2.8); c.stroke(); } },
+    paw: { icon: '🐾', draw: (c, col) => { const e = new Path2D(); e.ellipse(0, 0.35, 0.55, 0.45, 0, 0, 7); blob(c, [e, circ(-0.7, -0.1, 0.2), circ(-0.28, -0.55, 0.22), circ(0.28, -0.55, 0.22), circ(0.7, -0.1, 0.2)], col); } }
+  };
+})();
+state.stamp = 'star';
+function stampAt(p) {
+  const g = ++undoGroup, ang = rnd(-0.35, 0.35); let did = false;
+  for (const [q, isMir] of (state.sym ? [[p, false], [mir(p), true]] : [[p, false]])) if (stampOne(q, isMir ? -ang : ang, isMir, g)) did = true;
+  if (did) { sfxPop(); markDirty(); }
+}
+function stampOne(q, ang, flipX, g) {
+  const id = regionAt(q.x, q.y); if (!id) return false;
+  const m = getMask(id), R = S * [0.05, 0.085, 0.14][state.sizeIdx], E = R * 1.5;
+  const x0 = Math.max(m.x, Math.floor(q.x - E)), y0 = Math.max(m.y, Math.floor(q.y - E));
+  const x1 = Math.min(m.x + m.w, Math.ceil(q.x + E)), y1 = Math.min(m.y + m.h, Math.ceil(q.y + E));
+  if (x1 <= x0 || y1 <= y0) return false;
+  const w = x1 - x0, h = y1 - y0, t = document.createElement('canvas'); t.width = w; t.height = h;
+  const c = t.getContext('2d');
+  c.translate(q.x - x0, q.y - y0); c.rotate(ang); if (flipX) c.scale(-1, 1); c.scale(R, R); c.lineJoin = 'round';
+  STAMPS[state.stamp].draw(c, state.color);
+  c.setTransform(1, 0, 0, 1, 0, 0); c.globalCompositeOperation = 'destination-in';
+  c.drawImage(m.canvas, x0 - m.x, y0 - m.y, w, h, 0, 0, w, h);          // 只留在點到的區域內
+  pushUndo(x0, y0, w, h, g); pctx.drawImage(t, x0, y0);
+  return true;
+}
+
+/* ===================== 音效（用瀏覽器合成，不需要音檔）與完成獎勵 ===================== */
+let audioCtx = null, soundOn = true;
+try { soundOn = localStorage.getItem('coloring-sound') !== '0'; } catch (_) {}
+function tone(f, at, dur, type, vol) {
+  if (!soundOn) return;
+  try {
+    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    const o = audioCtx.createOscillator(), g = audioCtx.createGain(), t = audioCtx.currentTime + at;
+    o.type = type; o.frequency.value = f;
+    g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(vol, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g); g.connect(audioCtx.destination); o.start(t); o.stop(t + dur + 0.05);
+  } catch (_) {}
+}
+function sfxPop() { tone(560, 0, 0.12, 'sine', 0.16); tone(840, 0.05, 0.1, 'sine', 0.1); }
+function sfxFanfare() {
+  [523, 659, 784, 1047].forEach((f, i) => tone(f, i * 0.12, 0.35, 'triangle', 0.2));
+  tone(1319, 0.5, 0.55, 'sine', 0.15); [1568, 1760, 2093].forEach((f, i) => tone(f, 0.65 + i * 0.09, 0.22, 'sine', 0.08));
+}
+function setSoundIcon() { $('lkSnd').textContent = soundOn ? '🔊' : '🔇'; }
+$('lkSnd').onclick = () => { soundOn = !soundOn; try { localStorage.setItem('coloring-sound', soundOn ? '1' : '0'); } catch (_) {} setSoundIcon(); if (soundOn) sfxPop(); };
+setSoundIcon();
+
+const PRAISE = ['太棒了！', '好厲害！', '畫得真漂亮！', '哇，好美！', '你是小畫家！'];
+let rewardN = 0;
+function reward() {
+  rewardN = (rewardN + 1 + (Math.random() * 2 | 0)) % 3;
+  const p = $('praise'); p.textContent = PRAISE[(Math.random() * PRAISE.length) | 0];
+  p.classList.remove('show'); void p.offsetWidth; p.classList.add('show');
+  cheer('⭐'); sfxFanfare();
+  if (rewardN === 0) confetti();
+  else if (rewardN === 1) floaters(['🎈', '🎈', '🎈', '🌈', '⭐'], 'rise', 14);
+  else floaters(['⭐', '🌟', '✨', '💖', '🎉'], 'fall', 28);
+}
+function floaters(list, anim, n) {
+  for (let i = 0; i < n; i++) {
+    const d = document.createElement('div'); d.className = 'fl'; d.textContent = list[(Math.random() * list.length) | 0];
+    d.style.left = rnd(2, 92) + 'vw'; if (anim === 'rise') d.style.bottom = '-14vh'; else d.style.top = '-10vh';
+    const dur = rnd(2.4, 4.2); d.style.animation = `${anim} ${dur}s ${rnd(0, 0.9)}s ease-in forwards`;
+    document.body.appendChild(d); setTimeout(() => d.remove(), (dur + 1.2) * 1000);
+  }
+}
+function confetti() {
+  const c = $('fx'), dpr = Math.min(2, window.devicePixelRatio || 1), W = innerWidth, H = innerHeight;
+  c.width = W * dpr; c.height = H * dpr; c.style.display = 'block';
+  const x = c.getContext('2d'); x.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const cols = ['#ff5252', '#ffb300', '#ffee58', '#66bb6a', '#29b6f6', '#7e57c2', '#ec407a'], ps = [];
+  for (let i = 0; i < 160; i++) ps.push({ x: W / 2 + rnd(-40, 40), y: H * 0.5, vx: rnd(-11, 11), vy: rnd(-18, -6), w: rnd(6, 12), h: rnd(8, 16), r: rnd(0, 6.28), vr: rnd(-0.3, 0.3), c: cols[(Math.random() * cols.length) | 0] });
+  const t0 = performance.now();
+  (function step(now) {
+    x.clearRect(0, 0, W, H);
+    let alive = 0;
+    for (const q of ps) {
+      q.vy += 0.4; q.vx *= 0.99; q.x += q.vx; q.y += q.vy; q.r += q.vr;
+      if (q.y < H + 30) alive++;
+      x.save(); x.translate(q.x, q.y); x.rotate(q.r); x.fillStyle = q.c; x.fillRect(-q.w / 2, -q.h / 2, q.w, q.h); x.restore();
+    }
+    if (alive && now - t0 < 4500) requestAnimationFrame(step); else c.style.display = 'none';
+  })(t0);
+}
 
 /* ===================== 7. 介面 ===================== */
 const barB = $('barB'), colorBtn = $('colorBtn');
@@ -1423,13 +1747,67 @@ for (const k of Object.keys(BRUSHES)) {
   $('brushGrid').appendChild(b); brushItems[k] = b;
 }
 brushBtn.onclick = () => $('brushOverlay').classList.add('show');
+const stampBtn = document.createElement('button');   // 印章
+stampBtn.className = 't'; stampBtn.setAttribute('aria-label', '印章');
+barB.insertBefore(stampBtn, eraserBtn);
+for (const k of Object.keys(STAMPS)) {
+  const b = document.createElement('button');
+  b.className = 't'; b.textContent = STAMPS[k].icon; b.setAttribute('aria-label', k);
+  b.onclick = () => { state.stamp = k; setTool('stamp'); $('stampOverlay').classList.remove('show'); };
+  $('stampGrid').appendChild(b);
+}
+stampBtn.onclick = () => $('stampOverlay').classList.add('show');
+$('stampOverlay').onclick = e => { if (e.target.id === 'stampOverlay') e.currentTarget.classList.remove('show'); };
+const shapeBtn = document.createElement('button');   // 幾何形狀（只在空白畫布出現）
+shapeBtn.className = 't'; shapeBtn.textContent = '🔷'; shapeBtn.setAttribute('aria-label', '幾何形狀'); shapeBtn.style.display = 'none';
+barB.insertBefore(shapeBtn, eraserBtn);
+for (const sh of SHAPE_LIST) {
+  const b = document.createElement('button'), cv = document.createElement('canvas'), cs = 48;
+  cv.width = cv.height = cs * 2; cv.style.width = cv.style.height = cs + 'px';
+  const x = cv.getContext('2d'), m = Math.max(sh.w, sh.h), W = 80 * sh.w / m, Hh = 80 * sh.h / m;
+  x.scale(2, 2); x.translate(24 - W / 2, 24 - Hh / 2); x.scale(W / 100, Hh / 100);
+  x.lineJoin = 'round'; x.lineWidth = 5 * 100 / Math.max(W, Hh); x.fillStyle = '#8ecae6'; x.strokeStyle = '#222'; x.fill(sh.p); x.stroke(sh.p); if (sh.pe) x.stroke(sh.pe);
+  const t = document.createElement('span'); t.textContent = sh.name;
+  b.append(cv, t); b.setAttribute('aria-label', sh.name);
+  b.onclick = () => { setTool('shape'); addObj(sh.id); $('shapeOverlay').classList.remove('show'); };
+  $('shapeGrid').appendChild(b);
+}
+shapeBtn.onclick = () => $('shapeOverlay').classList.add('show');
+$('shapeOverlay').onclick = e => { if (e.target.id === 'shapeOverlay') e.currentTarget.classList.remove('show'); };
+function afterPage(pg) {                                // 換頁後：形狀按鈕只在空白畫布顯示
+  document.body.classList.toggle('has-shape', !!pg.blank);
+  shapeBtn.style.display = pg.blank ? '' : 'none';
+  if (!pg.blank && state.tool === 'shape') setTool(state.lastBrush);
+  fit();
+}
+const symBtn = document.createElement('button');     // 對稱畫筆：左右鏡像
+symBtn.className = 't'; symBtn.textContent = '🦋'; symBtn.setAttribute('aria-label', '對稱');
+symBtn.onclick = () => { state.sym = !state.sym; symBtn.classList.toggle('on', state.sym); wrap.classList.toggle('sym', state.sym); };
+barB.insertBefore(symBtn, colorBtn);
+$('brushOverlay').onclick = e => { if (e.target.id === 'brushOverlay') e.currentTarget.classList.remove('show'); };
+const BRUSH_NAMES = { crayon: '蠟筆', marker: '麥克筆', pencil: '鉛筆', water: '水彩筆', rainbow: '彩虹筆', spray: '噴漆', glitter: '亮粉', confetti: '彩紙', star: '星星筆', heart: '愛心筆' };
+function updateExtra() {
+  const t = state.tool;
+  $('xBrush').textContent = t === 'shape' ? '🔷 形狀' : t === 'stamp' ? STAMPS[state.stamp].icon + ' 印章' : t === 'eraser' ? '🧽 橡皮擦' : BRUSHES[t].icon + ' ' + (BRUSH_NAMES[t] || '');
+}
+$('xBrush').onclick = () => $(state.tool === 'shape' ? 'shapeOverlay' : state.tool === 'stamp' ? 'stampOverlay' : 'brushOverlay').classList.add('show');
+function dailyColors() {                              // 每天固定的一組推薦色（依日期變化）
+  const d = new Date(), day = Math.floor((d - new Date(d.getFullYear(), 0, 0)) / 864e5), h = (day * 47 + d.getFullYear()) % 360;
+  return [0, 40, 120, 180, 220, 300].map((o, i) => `hsl(${(h + o) % 360},${i % 2 ? 78 : 88}%,${i % 3 === 0 ? 50 : 60}%)`);
+}
 $('brushOverlay').onclick = e => { if (e.target.id === 'brushOverlay') e.currentTarget.classList.remove('show'); };
 function setTool(k) {
+  if (k !== 'shape') flattenObjects();                 // 離開形狀模式就固定到畫布上
   state.tool = k;
-  if (k !== 'eraser') state.lastBrush = k;
+  if (k !== 'eraser' && k !== 'stamp' && k !== 'shape') state.lastBrush = k;
   brushBtn.textContent = BRUSHES[state.lastBrush].icon;
-  brushBtn.classList.toggle('on', k !== 'eraser');
+  stampBtn.textContent = STAMPS[state.stamp].icon;
+  brushBtn.classList.toggle('on', k !== 'eraser' && k !== 'stamp' && k !== 'shape');
+  shapeBtn.classList.toggle('on', k === 'shape');
+  renderObjs(); updateObjBar();
+  stampBtn.classList.toggle('on', k === 'stamp');
   eraserBtn.classList.toggle('on', k === 'eraser');
+  updateExtra();
   for (const t in brushItems) brushItems[t].classList.toggle('on', t === k);
   updateDots();
 }
@@ -1442,6 +1820,7 @@ function makeSwatch(color, parent, custom) {
   return b;
 }
 for (const c of COLORS) { makeSwatch(c, $('palette')); makeSwatch(c, $('palGrid')); }
+for (const c of dailyColors()) makeSwatch(c, $('xDaily'));
 
 /* ---- 自訂顏色：色相條＋明暗方塊，最多存 12 個（存在這台裝置，長按可修改或刪除） ---- */
 const CUSTOM_MAX = 12;
@@ -1568,6 +1947,7 @@ loadCustom(); renderCustom();
 
 function setColor(c) {
   state.color = c;
+  if (state.tool === 'shape' && selObj() && selObj().fill !== c) { pushHist(); selObj().fill = c; renderObjs(); markDirty(); }   // 選著形狀時，點顏色＝幫形狀換色
   if (state.tool === 'eraser') setTool(state.lastBrush);   // 選顏色時自動換回筆刷
   for (const s of swatches) s.classList.toggle('on', s.dataset.c === c);
   updateDots();
@@ -1579,11 +1959,12 @@ function updateDots() {
   $('colorDot').style.background = state.color;
 }
 $('sizeBtn').onclick = () => { state.sizeIdx = (state.sizeIdx + 1) % 3; updateDots(); };
-$('undoBtn').onclick = undo;
-$('clearBtn').onclick = () => { pushUndo(0, 0, S, S); pctx.clearRect(0, 0, S, S); markDirty(); };  // 清除也能復原
+$('undoBtn').onclick = () => { if (state.tool === 'shape' && objHist.length) restoreHist(); else undo(); };
+$('clearBtn').onclick = () => { flattenObjects(); pushUndo(0, 0, S, S); pctx.clearRect(0, 0, S, S); markDirty(); };  // 清除也能復原
 colorBtn.onclick = () => $('palOverlay').classList.add('show');
 $('palOverlay').onclick = e => { if (e.target.id === 'palOverlay') e.currentTarget.classList.remove('show'); };
 $('homeBtn').onclick = () => {
+  flattenObjects();
   view = null; renderPages(); $('homeOverlay').classList.add('show');
   flushSave().then(() => { if (view === null && $('homeOverlay').classList.contains('show')) renderPages(); });   // 存好後更新卡片縮圖
 };
@@ -1614,12 +1995,19 @@ function cheer(icon) {
 
 /* 版面：手機/平板判斷、畫布縮放（只改顯示大小，不動像素） */
 function fit() {
+  const inStage = barB.parentNode === stage, bw = inStage ? barB.offsetWidth + 14 : 0;   // 平板橫放：左邊留位置給筆刷欄
+  stage.style.paddingLeft = bw ? bw + 'px' : '';
   const r = stage.getBoundingClientRect();
-  const s = Math.max(100, Math.floor(Math.min(r.width, r.height) - 16));
+  const s = Math.max(100, Math.floor(Math.min(r.width - bw, r.height) - 16));
   wrap.style.width = wrap.style.height = s + 'px';
+  barB.style.left = inStage ? Math.max(6, Math.round(bw + (r.width - bw - s) / 2 - barB.offsetWidth - 10)) + 'px' : '';   // 筆刷欄貼著畫布左邊
 }
 function layout() {
-  document.body.classList.toggle('tablet', Math.min(innerWidth, innerHeight) >= 600);
+  const tab = Math.min(innerWidth, innerHeight) >= 600;
+  document.body.classList.toggle('tablet', tab);
+  const tl = tab && innerWidth > innerHeight;          // 平板橫放時，把筆刷欄移到畫布旁邊
+  if (tl && barB.parentNode !== stage) stage.appendChild(barB);
+  else if (!tl && barB.parentNode !== $('app')) $('app').appendChild(barB);
   fit();
 }
 window.addEventListener('resize', layout);
@@ -1660,6 +2048,7 @@ function drawArt(item) {
 // 載入第 i 頁：畫線稿 → 計算區域 → 清空顏料與復原（成功回傳 true）
 async function loadPage(i) {
   $('loading').classList.add('show');
+  flattenObjects();
   await flushSave();                                  // 先把目前這張畫到一半的存好
   await new Promise(r => setTimeout(r, 30));          // 讓轉圈圈先顯示
   try {
@@ -1675,7 +2064,7 @@ async function loadPage(i) {
     undoStack.length = 0; undoBytes = 0;
     await restoreDraft(pg);                           // 讀回上次畫到一半的內容
     pg.thumb = pg.blank ? null : makeThumb();
-    curPage = i; curPg = pg;
+    curPage = i; curPg = pg; afterPage(pg);
     try { const k = draftKey(pg); if (k) localStorage.setItem('coloring-last', k); } catch (_) {}
     return true;
   } catch (err) {
@@ -1885,7 +2274,9 @@ function markDirty() { dirty = true; clearTimeout(saveT); saveT = setTimeout(flu
 function compose(size) {
   const c = document.createElement('canvas'); c.width = c.height = size;
   const x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, size, size);
-  x.drawImage(paint, 0, 0, size, size); x.drawImage(line, 0, 0, size, size);
+  x.drawImage(paint, 0, 0, size, size);
+  if (objs.length) { x.save(); x.scale(size / S, size / S); drawObjs(x); x.restore(); }
+  x.drawImage(line, 0, 0, size, size);
   return c;
 }
 function askPersist() {
@@ -1900,7 +2291,7 @@ function flushSave() {
   if (!key) { saveT = setTimeout(flushSave, 800); return saving; }      // 匯入的線稿還沒拿到編號，稍後再存
   dirty = false;
   const thumb = compose(300).toDataURL('image/jpeg', 0.8);             // 以下兩行同步取得畫面，之後換頁也不會存錯
-  const blobP = new Promise(r => paint.toBlob(r, 'image/png'));
+  const blobP = new Promise(r => paintBlob(r));
   saving = saving.then(async () => {
     try {
       const blob = await blobP; if (!blob) throw new Error('toBlob');
@@ -1923,10 +2314,11 @@ addEventListener('pagehide', () => { flushSave(); });
 
 // ✅ 完成：存進「我的作品」（之後可在首頁回頭看、存到相簿）；畫面保留，可以繼續畫
 async function finishWork() {
+  flattenObjects();
   flushSave();
   const full = compose(S), th = compose(300).toDataURL('image/jpeg', 0.8);
   const blob = await new Promise(r => full.toBlob(r, 'image/png'));
-  cheer();
+  reward();
   if (!blob) return;
   try {
     const meta = { thumb: th, created: Date.now() };
