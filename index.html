@@ -69,9 +69,13 @@ body.tablet #colorBtn{ display:none; }
 #palGrid,#brushGrid{ background:#fff; border-radius:20px; padding:14px; display:grid; gap:8px;
   grid-template-columns:repeat(auto-fill,var(--btn)); justify-content:center;
   width:min(92vw,560px); max-height:85vh; overflow:auto; }
-#pageCard{ width:min(70vmin,420px); aspect-ratio:1; border:none; border-radius:24px; background:#fff;
-  padding:12px; box-shadow:0 6px 0 rgba(0,0,0,.2); cursor:pointer; }
-#pageCard img{ width:100%; height:100%; display:block; }
+#pages{ display:flex; flex-wrap:wrap; gap:16px; justify-content:center; align-content:center;
+  max-width:94vw; max-height:90vh; overflow:auto; padding:12px; }
+.page{ width:min(40vmin,240px); aspect-ratio:1; border:none; border-radius:24px; background:#fff;
+  padding:10px; box-shadow:0 6px 0 rgba(0,0,0,.2); cursor:pointer; font-size:min(16vmin,96px); }
+.page img{ width:100%; height:100%; display:block; object-fit:contain; }
+.page.on{ box-shadow:0 0 0 6px #ff9f1a; }
+.page.add{ background:#fff3c4; border:4px dashed #ffb300; }
 #cheer{ pointer-events:none; }
 #cheer .star{ font-size:40vmin; animation:pop 1.3s ease forwards; }
 @keyframes pop{ 0%{transform:scale(.2) rotate(-30deg);opacity:0} 40%{transform:scale(1.1) rotate(10deg);opacity:1} 100%{transform:scale(1);opacity:0} }
@@ -103,7 +107,8 @@ body.tablet #colorBtn{ display:none; }
 </div>
 <div id="palOverlay" class="ov"><div id="palGrid"></div></div>
 <div id="brushOverlay" class="ov"><div id="brushGrid"></div></div>
-<div id="homeOverlay" class="ov"><button id="pageCard" aria-label="蘋果"><img id="pageThumb" alt=""></button></div>
+<div id="homeOverlay" class="ov"><div id="pages"></div></div>
+<input type="file" id="fileIn" accept="image/png,image/jpeg" hidden>
 <div id="cheer" class="ov"><div class="star">⭐</div></div>
 <div id="loading" class="ov show"><div class="spin">🎨</div></div>
 
@@ -116,7 +121,7 @@ const DPR = window.devicePixelRatio || 1;
 const S = Math.max(1024, Math.min(2048, Math.round(Math.min(screen.width, screen.height) * DPR)));
 const GAP = Math.max(2, Math.round(S / 400));   // 線條加粗幾像素來補小缺口
 const LINE_PX = Math.round(S * 0.014);                  // 線稿的線寬（和 drawApple 的 lineWidth 一致）
-const FILL_R = GAP + Math.round(LINE_PX * 0.6);         // 顏色往黑線底下延伸的距離
+let FILL_R = GAP + Math.round(LINE_PX * 0.6);           // 顏色往黑線底下延伸的距離（每張線稿依線寬重算）
 const SIZES = [0.015, 0.035, 0.07];             // 三段粗細（相對畫布寬）
 const DOT_PX = [12, 22, 34];                     // 粗細按鈕上圓點大小
 
@@ -619,8 +624,8 @@ $('undoBtn').onclick = undo;
 $('clearBtn').onclick = () => { pushUndo(0, 0, S, S); pctx.clearRect(0, 0, S, S); };  // 清除也能復原
 colorBtn.onclick = () => $('palOverlay').classList.add('show');
 $('palOverlay').onclick = e => { if (e.target.id === 'palOverlay') e.currentTarget.classList.remove('show'); };
-$('homeBtn').onclick = () => $('homeOverlay').classList.add('show');
-$('pageCard').onclick = () => $('homeOverlay').classList.remove('show');
+$('homeBtn').onclick = () => { renderPages(); $('homeOverlay').classList.add('show'); };
+$('homeOverlay').onclick = e => { if (e.target.id === 'homeOverlay' || e.target.id === 'pages') e.currentTarget.classList.remove('show'); };
 $('doneBtn').onclick = exportImage;
 
 /* 完成：存成圖片（手機用分享選單存到相簿；不支援時直接下載） */
@@ -648,8 +653,8 @@ function download(blob, name) {
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 5000);
 }
-function cheer() {
-  const c = $('cheer'), s = c.firstElementChild;
+function cheer(icon) {
+  const c = $('cheer'), s = c.firstElementChild; s.textContent = icon || '⭐';
   c.classList.add('show'); s.style.animation = 'none'; void s.offsetWidth; s.style.animation = '';
   clearTimeout(cheer.t); cheer.t = setTimeout(() => c.classList.remove('show'), 1300);
 }
@@ -672,19 +677,133 @@ document.addEventListener('contextmenu', e => e.preventDefault());
 document.addEventListener('gesturestart', e => e.preventDefault());
 document.addEventListener('touchmove', e => { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
 
+/* ===================== 9. 線稿頁面與匯入（圖片只在本機處理，不會上傳） ===================== */
+const MIN_LINE = Math.round(S * 0.008);              // 匯入線稿的最細線寬，太細會自動加粗
+const pages = [{ name: '蘋果', draw: drawApple }];    // 頁面清單：內建 + 匯入
+let curPage = -1;
+
+function setLineWidth(px) { FILL_R = GAP + Math.max(1, Math.round(px * 0.6)); }
+
+// 載入第 i 頁：畫線稿 → 計算區域 → 清空顏料與復原
+async function loadPage(i) {
+  $('loading').classList.add('show');
+  await new Promise(r => setTimeout(r, 30));          // 讓轉圈圈先顯示
+  try {
+    const pg = pages[i];
+    if (pg.draw) { pg.draw(nctx); setLineWidth(LINE_PX); }
+    else setLineWidth(await drawImported(pg.file));
+    buildRegions();
+    pctx.clearRect(0, 0, S, S); lctx.clearRect(0, 0, S, S);
+    undoStack.length = 0; undoBytes = 0;
+    pg.thumb = makeThumb();
+    curPage = i;
+  } catch (err) {
+    console.warn(err);
+    if (!pages[i].draw) pages.splice(i, 1);           // 匯入失敗：移除這頁，保留原本的畫
+    cheer('❌');
+  } finally {
+    $('loading').classList.remove('show');
+  }
+}
+
+function loadImg(file) {
+  return new Promise((res, rej) => {
+    const url = URL.createObjectURL(file), img = new Image();
+    img.onload = () => { URL.revokeObjectURL(url); res(img); };
+    img.onerror = () => { URL.revokeObjectURL(url); rej(new Error('無法讀取圖片')); };
+    img.src = url;
+  });
+}
+
+// 把匯入的圖片處理成線稿，回傳線寬
+async function drawImported(file) {
+  const img = await loadImg(file);
+  const iw = img.naturalWidth, ih = img.naturalHeight;
+  if (!iw || !ih) throw new Error('空白圖片');
+  // 1. 白底、等比縮放、置中（四周留 4% 邊）
+  const c = document.createElement('canvas'); c.width = c.height = S;
+  const x = c.getContext('2d', { willReadFrequently: true });
+  x.fillStyle = '#fff'; x.fillRect(0, 0, S, S);
+  const m = S * 0.04, k = Math.min((S - 2 * m) / iw, (S - 2 * m) / ih), dw = iw * k, dh = ih * k;
+  x.imageSmoothingQuality = 'high';
+  x.drawImage(img, (S - dw) / 2, (S - dh) / 2, dw, dh);
+  // 2. 深色變黑線、淺色變透明（保留柔邊，JPG 的淺色雜點會被濾掉）
+  const id = x.getImageData(0, 0, S, S), d = id.data, LO = 90, HI = 200;
+  for (let i = 0; i < d.length; i += 4) {
+    const L = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+    d[i + 3] = L <= LO ? 255 : L >= HI ? 0 : Math.round(255 * (HI - L) / (HI - LO));
+    d[i] = d[i + 1] = d[i + 2] = 34;
+  }
+  x.putImageData(id, 0, 0);
+  // 3. 量線寬；太細就加粗（同時讓補洞和上色更穩）
+  let t = measureLine(d);
+  nctx.clearRect(0, 0, S, S);
+  if (t < MIN_LINE) {
+    const r = Math.min(Math.ceil((MIN_LINE - t) / 2), Math.round(S * 0.01));
+    thicken(nctx, c, r);
+    t += 2 * r;
+  } else nctx.drawImage(c, 0, 0);
+  return t;
+}
+
+// 估計平均線寬：線條面積 ÷ 邊緣長度 × 2
+function measureLine(d) {
+  let area = 0, edge = 0;
+  for (let y = 1; y < S - 1; y++) for (let x = 1; x < S - 1; x++) {
+    const i = y * S + x;
+    if (d[i * 4 + 3] <= 80) continue;
+    area++;
+    if (d[(i - 1) * 4 + 3] <= 80 || d[(i + 1) * 4 + 3] <= 80 || d[(i - S) * 4 + 3] <= 80 || d[(i + S) * 4 + 3] <= 80) edge++;
+  }
+  if (!area) throw new Error('找不到線條');
+  if (area > S * S * 0.6) throw new Error('太暗，不像白底線稿');
+  return 2 * area / edge;
+}
+
+// 線條加粗：把線稿往四周錯開疊畫（保留柔邊）
+function thicken(ctx, src, r) {
+  for (const rr of new Set([r, Math.ceil(r / 2)])) {
+    const n = Math.max(8, Math.ceil(2 * Math.PI * rr));
+    for (let k = 0; k < n; k++) { const a = k * 2 * Math.PI / n; ctx.drawImage(src, Math.cos(a) * rr, Math.sin(a) * rr); }
+  }
+  ctx.drawImage(src, 0, 0);
+}
+
+function makeThumb() {
+  const t = document.createElement('canvas'); t.width = t.height = 300;
+  const tx = t.getContext('2d'); tx.fillStyle = '#fff'; tx.fillRect(0, 0, 300, 300); tx.drawImage(line, 0, 0, 300, 300);
+  return t.toDataURL();
+}
+
+// 首頁：列出所有線稿＋「➕」匯入按鈕
+function renderPages() {
+  const box = $('pages'); box.innerHTML = '';
+  pages.forEach((pg, i) => {
+    const b = document.createElement('button');
+    b.className = 'page' + (i === curPage ? ' on' : '');
+    b.setAttribute('aria-label', pg.name);
+    if (pg.thumb) { const im = document.createElement('img'); im.src = pg.thumb; im.alt = ''; b.appendChild(im); }
+    else b.textContent = '🖼️';
+    b.onclick = () => { $('homeOverlay').classList.remove('show'); if (i !== curPage) loadPage(i); };
+    box.appendChild(b);
+  });
+  const add = document.createElement('button');
+  add.className = 'page add'; add.textContent = '➕'; add.setAttribute('aria-label', '匯入線稿');
+  add.onclick = () => $('fileIn').click();
+  box.appendChild(add);
+}
+$('fileIn').onchange = e => {
+  const f = e.target.files && e.target.files[0];
+  e.target.value = '';                                 // 讓同一張圖可以再選一次
+  if (!f) return;
+  $('homeOverlay').classList.remove('show');
+  pages.push({ name: '匯入', file: f });
+  loadPage(pages.length - 1);
+};
+
 /* ===================== 8. 啟動 ===================== */
 setTool('crayon'); setColor(state.color); layout();
-setTimeout(() => {
-  drawApple(nctx);
-  buildRegions();
-  // 首頁縮圖
-  const t = document.createElement('canvas'); t.width = t.height = 400;
-  const tx = t.getContext('2d'); tx.fillStyle = '#fff'; tx.fillRect(0, 0, 400, 400); tx.drawImage(line, 0, 0, 400, 400);
-  $('pageThumb').src = t.toDataURL();
-  $('loading').classList.remove('show');
-}, 50);
-
-// 離線：只有放在網站（https）上、且有 sw.js 時才會啟用
+setTimeout(() => loadPage(0), 50);
 if ('serviceWorker' in navigator && window.isSecureContext && location.protocol !== 'file:') {
   navigator.serviceWorker.register('sw.js').catch(() => {});
 }
