@@ -1,5 +1,5 @@
 // 離線快取：每次更新 App，把下面的版本號加 1（例如 v7 → v8），裝置才會抓到新版
-const CACHE = 'coloring-v11';
+const CACHE = 'coloring-v12';
 const FILES = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './logo.png'];
 
 self.addEventListener('install', e => {
