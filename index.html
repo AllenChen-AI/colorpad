@@ -255,7 +255,7 @@ function regionAt(x, y) {
 // 產生區域遮罩（稍微擴大到黑線底下，避免顏色和線之間留白縫）
 function getMask(id) {
   if (maskCache.has(id)) return maskCache.get(id);
-  const b = regionBox[id], pad = GAP + 2;
+  const b = regionBox[id], pad = FILL_R + 2;
   const x = Math.max(0, b.x0 - pad), y = Math.max(0, b.y0 - pad);
   const w = Math.min(S, b.x1 + pad + 1) - x, h = Math.min(S, b.y1 + pad + 1) - y;
   let a = new Uint8Array(w * h);
@@ -263,7 +263,7 @@ function getMask(id) {
     const src = (yy + y) * S + x, dst = yy * w;
     for (let xx = 0; xx < w; xx++) if (labels[src + xx] === id) a[dst + xx] = 1;
   }
-  a = dilate(a, w, h, GAP + 1);
+  a = dilate(a, w, h, FILL_R);
   const c = document.createElement('canvas'); c.width = w; c.height = h;
   const cx = c.getContext('2d'), img = cx.createImageData(w, h);
   for (let i = 0; i < w * h; i++) if (a[i]) img.data[i * 4 + 3] = 255;
