@@ -85,7 +85,14 @@ body.tablet #colorBtn{ display:none; }
   cursor:pointer; touch-action:manipulation; display:flex; align-items:center; justify-content:center; overflow:hidden; }
 .lk.fb{ background:#1877f2; } .lk.ig{ background:linear-gradient(45deg,#fd5949,#d6249f 55%,#285aeb); }
 .lk i{ position:absolute; left:0; bottom:0; height:100%; width:100%; background:rgba(255,255,255,.45); transform:scaleY(0); transform-origin:bottom; pointer-events:none; }
-.lk.hold i{ transform:scaleY(1); transition:transform 1.5s linear; }
+.hold i{ transform:scaleY(1); transition:transform 1.5s linear; }
+#updBtn{ display:none; position:relative; overflow:hidden; border:none; border-radius:22px; padding:12px 22px; background:#ff9800; color:#fff;
+  font-size:19px; font-weight:700; cursor:pointer; touch-action:manipulation; }
+#updBtn.show{ display:block; }
+#updBtn i{ position:absolute; left:0; top:0; bottom:0; width:100%; background:rgba(255,255,255,.35); transform:scaleX(0); transform-origin:left; pointer-events:none; }
+#updBtn.hold i{ transform:scaleX(1); transition:transform 1.5s linear; }
+#homeBtn.dot::after{ content:''; position:absolute; top:4px; right:4px; width:16px; height:16px; border-radius:50%; background:#ff3d00; border:2px solid #fff; }
+#homeBtn{ position:relative; }
 #hint{ position:fixed; left:50%; bottom:8vh; transform:translateX(-50%); background:rgba(0,0,0,.75); color:#fff; padding:10px 18px; border-radius:20px;
   font-size:18px; z-index:60; display:none; max-width:90vw; text-align:center; }
 #hint.show{ display:block; }
@@ -162,7 +169,7 @@ button.t.danger{ background:#ffb3b3; }
 </div>
 <div id="palOverlay" class="ov"><div id="palGrid"></div></div>
 <div id="brushOverlay" class="ov"><div id="brushGrid"></div></div>
-<div id="homeOverlay" class="ov"><div id="homeBox"><div id="brand"><img src="logo.png" alt="揚名創思空間"><div class="bn"><b>揚名 ColorPad</b><span>揚名創思空間</span></div></div><div id="homeHead"></div><div id="pages"></div>
+<div id="homeOverlay" class="ov"><div id="homeBox"><div id="brand"><img src="logo.png" alt="揚名創思空間"><div class="bn"><b>揚名 ColorPad</b><span>揚名創思空間</span></div></div><button id="updBtn">🔄 有新版本！請爸爸媽媽長按 1.5 秒更新<i></i></button><div id="homeHead"></div><div id="pages"></div>
 <div id="homeFoot"><div class="links"><button class="lk fb" id="lkFb" aria-label="Facebook 粉絲專頁（長按開啟）">f<i></i></button><button class="lk ig" id="lkIg" aria-label="Instagram（長按開啟）">IG<i></i></button></div><div>© 2026 揚名創思空間 All rights reserved</div><div style="font-size:12px;opacity:.85">連結請爸爸媽媽長按約 1.5 秒開啟</div></div></div></div>
 <div id="hint"></div>
 <div id="actOverlay" class="ov"><div id="actBox"><div id="actPrev"></div><div id="actHint"></div><div id="actBtns"></div></div></div>
@@ -1252,7 +1259,32 @@ setTimeout(async () => {
   loadPage(0);
 }, 50);
 if ('serviceWorker' in navigator && window.isSecureContext && location.protocol !== 'file:') {
-  navigator.serviceWorker.register('sw.js').catch(() => {});
+  let waitingSW = null, userUpdate = false, reloading = false;
+  const offerUpdate = w => { waitingSW = w; $('updBtn').classList.add('show'); $('homeBtn').classList.add('dot'); };
+  navigator.serviceWorker.register('sw.js').then(reg => {
+    // 已有舊版在運作、且新版已下載完成在等待 → 顯示更新按鈕
+    const check = () => { if (reg.waiting && navigator.serviceWorker.controller) offerUpdate(reg.waiting); };
+    check();
+    reg.addEventListener('updatefound', () => {
+      const n = reg.installing;
+      if (n) n.addEventListener('statechange', () => { if (n.state === 'installed') check(); });
+    });
+    const poll = () => reg.update().catch(() => {});
+    setInterval(poll, 30 * 60 * 1000);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) poll(); });
+  }).catch(() => {});
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (userUpdate && !reloading) { reloading = true; location.reload(); }
+  });
+  const ub = $('updBtn'), unh = () => ub.classList.remove('hold');
+  ub.addEventListener('pointerdown', () => { unh(); void ub.offsetWidth; ub.classList.add('hold'); });
+  for (const n of ['pointerup', 'pointercancel', 'pointerleave']) ub.addEventListener(n, unh);
+  ub.addEventListener('contextmenu', e => e.preventDefault());
+  press(ub, () => showHint('請爸爸媽媽長按約 1.5 秒更新'), () => {
+    unh(); if (!waitingSW) return;
+    userUpdate = true; waitingSW.postMessage('SKIP_WAITING');
+    setTimeout(() => { if (!reloading) { reloading = true; location.reload(); } }, 3000);
+  }, 1500);
 }
 </script>
 </body>
