@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>著色本</title>
+<!-- PWA：這三行需要同資料夾的 manifest.webmanifest、icon-192.png；單獨開啟 HTML 時會被忽略，不影響使用 -->
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="theme-color" content="#ffe9b8">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<style>
+/* ===================== 介面樣式 ===================== */
+:root{ --btn:64px; --gap:6px; --bg:#fff7e6; --bar:#ffe9b8; }
+*{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+html,body{ margin:0; height:100%; overflow:hidden; background:var(--bg);
+  font-family:system-ui,-apple-system,sans-serif; user-select:none; -webkit-user-select:none;
+  -webkit-touch-callout:none; overscroll-behavior:none; }
+
+/* 直式：上工具列 / 畫布 / 色盤(平板) / 下工具列 */
+#app{ position:fixed; inset:0; display:grid;
+  padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  grid-template-areas:"a" "s" "p" "b"; grid-template-rows:auto 1fr auto auto; grid-template-columns:1fr; }
+/* 橫式：左側筆刷欄 / 上工具列+畫布 / 右側色盤(平板) */
+@media (orientation:landscape){
+  #app{ grid-template-areas:"b a p" "b s p"; grid-template-columns:auto 1fr auto; grid-template-rows:auto 1fr; }
+}
+
+.bar{ display:flex; gap:var(--gap); padding:6px; justify-content:space-between; align-items:center; background:var(--bar); }
+#barA{ grid-area:a; }
+#barB{ grid-area:b; }
+@media (orientation:landscape){
+  #barB{ flex-direction:column; justify-content:center; overflow-y:auto; }
+}
+
+button.t{ width:var(--btn); height:var(--btn); min-width:var(--btn); min-height:var(--btn); flex:0 0 auto;
+  border:none; border-radius:18px; background:#fff; font-size:34px; line-height:1; padding:0;
+  display:flex; align-items:center; justify-content:center; box-shadow:0 3px 0 rgba(0,0,0,.15);
+  touch-action:manipulation; cursor:pointer; }
+button.t:active{ transform:translateY(2px); box-shadow:0 1px 0 rgba(0,0,0,.15); }
+button.t.on{ background:#ffd34d; box-shadow:0 0 0 4px #ff9f1a; }
+#sizeDot,#colorDot{ display:block; border-radius:50%; }
+#colorDot{ width:44px; height:44px; border:3px solid #fff; box-shadow:0 0 0 2px rgba(0,0,0,.2); }
+
+/* 畫布區 */
+#stage{ grid-area:s; position:relative; display:flex; align-items:center; justify-content:center;
+  min-width:0; min-height:0; touch-action:none; }
+#wrap{ position:relative; background:#fff; border-radius:16px; overflow:hidden; touch-action:none;
+  box-shadow:0 4px 16px rgba(0,0,0,.12); }
+#wrap canvas{ position:absolute; inset:0; width:100%; height:100%; pointer-events:none; }
+
+/* 色盤：手機隱藏(改用彈出面板)，平板直接攤開 */
+#palette{ grid-area:p; display:none; }
+body.tablet #palette{ display:grid; gap:6px; padding:8px; background:var(--bar); overflow:auto;
+  grid-template-columns:repeat(auto-fill,var(--btn)); justify-content:center; max-height:38vh; }
+@media (orientation:landscape){
+  body.tablet #palette{ grid-template-columns:repeat(6,var(--btn)); max-height:none; align-content:center; }
+}
+body.tablet #colorBtn{ display:none; }
+.sw{ width:var(--btn); height:var(--btn); border-radius:50%; border:3px solid rgba(0,0,0,.15);
+  padding:0; cursor:pointer; touch-action:manipulation; }
+.sw.on{ outline:5px solid #333; outline-offset:2px; }
+
+/* 各種覆蓋層 */
+.ov{ position:fixed; inset:0; display:none; align-items:center; justify-content:center; z-index:20; }
+.ov.show{ display:flex; }
+#palOverlay,#homeOverlay{ background:rgba(0,0,0,.4); }
+#palGrid{ background:#fff; border-radius:20px; padding:14px; display:grid; gap:8px;
+  grid-template-columns:repeat(auto-fill,var(--btn)); justify-content:center;
+  width:min(92vw,560px); max-height:85vh; overflow:auto; }
+#pageCard{ width:min(70vmin,420px); aspect-ratio:1; border:none; border-radius:24px; background:#fff;
+  padding:12px; box-shadow:0 6px 0 rgba(0,0,0,.2); cursor:pointer; }
+#pageCard img{ width:100%; height:100%; display:block; }
+#cheer{ pointer-events:none; }
+#cheer .star{ font-size:40vmin; animation:pop 1.3s ease forwards; }
+@keyframes pop{ 0%{transform:scale(.2) rotate(-30deg);opacity:0} 40%{transform:scale(1.1) rotate(10deg);opacity:1} 100%{transform:scale(1);opacity:0} }
+#loading{ background:var(--bg); z-index:50; }
+#loading .spin{ font-size:80px; animation:sp 1s linear infinite; }
+@keyframes sp{ to{ transform:rotate(360deg); } }
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="bar" id="barA">
+    <button class="t" id="homeBtn" aria-label="首頁">🏠</button>
+    <button class="t" id="undoBtn" aria-label="復原">↩️</button>
+    <button class="t" id="clearBtn" aria-label="清除">🗑️</button>
+    <button class="t" id="sizeBtn" aria-label="粗細"><span id="sizeDot"></span></button>
+    <button class="t" id="doneBtn" aria-label="完成">✅</button>
+  </div>
+  <div id="stage">
+    <div id="wrap">
+      <canvas id="paint"></canvas>  <!-- 顏料層（最下） -->
+      <canvas id="live"></canvas>   <!-- 正在畫的這一筆 -->
+      <canvas id="line"></canvas>   <!-- 線稿層（最上） -->
+    </div>
+  </div>
+  <div id="palette"></div>
+  <div class="bar" id="barB">
+    <button class="t" id="colorBtn" aria-label="顏色"><span id="colorDot"></span></button>
+  </div>
+</div>
+<div id="palOverlay" class="ov"><div id="palGrid"></div></div>
+<div id="homeOverlay" class="ov"><button id="pageCard" aria-label="蘋果"><img id="pageThumb" alt=""></button></div>
+<div id="cheer" class="ov"><div class="star">⭐</div></div>
+<div id="loading" class="ov show"><div class="spin">🎨</div></div>
+
+<script>
+'use strict';
+/* ===================== 1. 基本設定 ===================== */
+const $ = id => document.getElementById(id);
+const DPR = window.devicePixelRatio || 1;
+// 畫布內部解析度固定（依螢幕短邊 × DPR），轉螢幕只縮放顯示，不會變形或遺失顏色
+const S = Math.max(1024, Math.min(2048, Math.round(Math.min(screen.width, screen.height) * DPR)));
+const GAP = Math.max(2, Math.round(S / 400));   // 線條加粗幾像素來補小缺口
+const SIZES = [0.015, 0.035, 0.07];             // 三段粗細（相對畫布寬）
+const DOT_PX = [12, 22, 34];                     // 粗細按鈕上圓點大小
+
+const paint = $('paint'), live = $('live'), line = $('line'), wrap = $('wrap'), stage = $('stage');
+for (const c of [paint, live, line]) { c.width = S; c.height = S; }
+const pctx = paint.getContext('2d');
+const lctx = live.getContext('2d');
+const nctx = line.getContext('2d');
+const stroke = document.createElement('canvas');   // 暫存一筆的筆觸（區域大小）
+stroke.width = stroke.height = 16;
+let sctx = stroke.getContext('2d');
+
+const state = { tool: 'crayon', lastBrush: 'crayon', color: null, sizeIdx: 1 };
+
+/* ===================== 2. 48 色 ===================== */
+const COLORS = (() => {
+  const hues = [0, 20, 40, 55, 80, 120, 160, 190, 210, 240, 275, 320];
+  const out = [];
+  for (const [s, l] of [[90, 80], [85, 55], [80, 35]])
+    for (const h of hues) out.push(`hsl(${h},${s}%,${l}%)`);
+  out.push('#ffffff', '#d6d6d6', '#9e9e9e', '#616161', '#333333', '#000000',
+           '#ffe0c7', '#f1c27d', '#d29a5c', '#a0522d', '#6d3b1e', '#3e2312');
+  return out;   // 共 48 色
+})();
+state.color = COLORS[12];
+
+/* ===================== 3. 線稿：程式繪製的蘋果 ===================== */
+function drawApple(ctx) {
+  ctx.clearRect(0, 0, S, S);
+  ctx.save();
+  ctx.scale(S, S);
+  ctx.lineWidth = 0.014; ctx.lineJoin = 'round'; ctx.lineCap = 'round'; ctx.strokeStyle = '#222';
+  // 果身（兩個圓弧的蘋果形）
+  ctx.beginPath();
+  ctx.moveTo(.5, .32);
+  ctx.bezierCurveTo(.62, .22, .86, .26, .86, .52);
+  ctx.bezierCurveTo(.86, .74, .70, .90, .60, .90);
+  ctx.bezierCurveTo(.55, .90, .53, .87, .5, .87);
+  ctx.bezierCurveTo(.47, .87, .45, .90, .40, .90);
+  ctx.bezierCurveTo(.30, .90, .14, .74, .14, .52);
+  ctx.bezierCurveTo(.14, .26, .38, .22, .5, .32);
+  ctx.closePath(); ctx.stroke();
+  // 果梗
+  ctx.beginPath();
+  ctx.moveTo(.485, .315);
+  ctx.quadraticCurveTo(.475, .20, .44, .115);
+  ctx.lineTo(.475, .10);
+  ctx.quadraticCurveTo(.515, .19, .52, .30);
+  ctx.closePath(); ctx.stroke();
+  // 葉子
+  ctx.beginPath();
+  ctx.moveTo(.505, .20);
+  ctx.quadraticCurveTo(.58, .06, .78, .10);
+  ctx.quadraticCurveTo(.70, .25, .505, .20);
+  ctx.closePath(); ctx.stroke();
+  // 葉脈（裝飾線）
+  ctx.beginPath(); ctx.moveTo(.54, .19); ctx.lineTo(.70, .135); ctx.stroke();
+  // 反光
+  ctx.beginPath(); ctx.ellipse(.29, .47, .04, .085, -0.35, 0, Math.PI * 2); ctx.stroke();
+  ctx.restore();
+}
+
+/* ===================== 4. 填色：區域計算 ===================== */
+let wall = null, labels = null, regionArea = [], regionBox = [];
+const maskCache = new Map();
+
+// 二值圖膨脹（加粗），用滑動視窗，速度快
+function dilate(src, w, h, r) {
+  const tmp = new Uint8Array(w * h), out = new Uint8Array(w * h);
+  for (let y = 0; y < h; y++) {
+    const row = y * w; let cnt = 0;
+    for (let x = 0; x < Math.min(r, w); x++) cnt += src[row + x];
+    for (let x = 0; x < w; x++) {
+      if (x + r < w) cnt += src[row + x + r];
+      if (x - r - 1 >= 0) cnt -= src[row + x - r - 1];
+      tmp[row + x] = cnt > 0 ? 1 : 0;
+    }
+  }
+  for (let x = 0; x < w; x++) {
+    let cnt = 0;
+    for (let y = 0; y < Math.min(r, h); y++) cnt += tmp[y * w + x];
+    for (let y = 0; y < h; y++) {
+      if (y + r < h) cnt += tmp[(y + r) * w + x];
+      if (y - r - 1 >= 0) cnt -= tmp[(y - r - 1) * w + x];
+      out[y * w + x] = cnt > 0 ? 1 : 0;
+    }
+  }
+  return out;
+}
+
+// 讀線稿 → 加粗補洞 → 把每個封閉區域編號（flood fill）
+function buildRegions() {
+  const d = nctx.getImageData(0, 0, S, S).data;
+  const w0 = new Uint8Array(S * S);
+  for (let i = 0; i < S * S; i++) w0[i] = d[i * 4 + 3] > 80 ? 1 : 0;
+  wall = dilate(w0, S, S, GAP);
+  labels = new Int32Array(S * S);
+  const stack = new Int32Array(S * S);
+  regionArea = [0]; regionBox = [null];
+  let n = 0;
+  for (let i = 0; i < S * S; i++) {
+    if (wall[i] || labels[i]) continue;
+    n++;
+    let sp = 0, area = 0, x0 = S, y0 = S, x1 = 0, y1 = 0;
+    stack[sp++] = i; labels[i] = n;
+    while (sp) {
+      const j = stack[--sp], x = j % S, y = (j / S) | 0;
+      area++;
+      if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+      let k;
+      if (x > 0     && !wall[k = j - 1] && !labels[k]) { labels[k] = n; stack[sp++] = k; }
+      if (x < S - 1 && !wall[k = j + 1] && !labels[k]) { labels[k] = n; stack[sp++] = k; }
+      if (y > 0     && !wall[k = j - S] && !labels[k]) { labels[k] = n; stack[sp++] = k; }
+      if (y < S - 1 && !wall[k = j + S] && !labels[k]) { labels[k] = n; stack[sp++] = k; }
+    }
+    regionArea.push(area); regionBox.push({ x0, y0, x1, y1 });
+  }
+  maskCache.clear();
+}
+
+// 找手指所在的區域；按在黑線上時，往外找最近的區域
+function regionAt(x, y) {
+  x = Math.round(x); y = Math.round(y);
+  const R = Math.round(S * 0.02);
+  for (let r = 0; r <= R; r++) {
+    for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+      if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+      const xx = x + dx, yy = y + dy;
+      if (xx < 0 || yy < 0 || xx >= S || yy >= S) continue;
+      const id = labels[yy * S + xx];
+      if (id && regionArea[id] > 50) return id;
+    }
+  }
+  return 0;
+}
+
+// 產生區域遮罩（稍微擴大到黑線底下，避免顏色和線之間留白縫）
+function getMask(id) {
+  if (maskCache.has(id)) return maskCache.get(id);
+  const b = regionBox[id], pad = GAP + 2;
+  const x = Math.max(0, b.x0 - pad), y = Math.max(0, b.y0 - pad);
+  const w = Math.min(S, b.x1 + pad + 1) - x, h = Math.min(S, b.y1 + pad + 1) - y;
+  let a = new Uint8Array(w * h);
+  for (let yy = 0; yy < h; yy++) {
+    const src = (yy + y) * S + x, dst = yy * w;
+    for (let xx = 0; xx < w; xx++) if (labels[src + xx] === id) a[dst + xx] = 1;
+  }
+  a = dilate(a, w, h, GAP + 1);
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  const cx = c.getContext('2d'), img = cx.createImageData(w, h);
+  for (let i = 0; i < w * h; i++) if (a[i]) img.data[i * 4 + 3] = 255;
+  cx.putImageData(img, 0, 0);
+  const m = { canvas: c, x, y, w, h };
+  maskCache.set(id, m);
+  return m;
+}
+
+/* ===================== 5. 筆刷（新增筆刷只要在這裡加一項） ===================== */
+// begin：設定筆刷樣式；seg：畫一小段；alpha：整筆的透明度
+const patCache = new Map();
+function crayonPattern(color) {
+  if (patCache.has(color)) return patCache.get(color);
+  const c = document.createElement('canvas'); c.width = c.height = 64;
+  const x = c.getContext('2d');
+  x.fillStyle = color; x.fillRect(0, 0, 64, 64);
+  const d = x.getImageData(0, 0, 64, 64);
+  for (let i = 0; i < 64 * 64; i++) {
+    const r = Math.random();
+    if (r < 0.22) d.data[i * 4 + 3] = 0; else if (r < 0.45) d.data[i * 4 + 3] = 150;
+  }
+  x.putImageData(d, 0, 0);
+  const p = sctx.createPattern(c, 'repeat');
+  const k = S / 700;   // 紋理顆粒隨解析度放大
+  if (p.setTransform && window.DOMMatrix) p.setTransform(new DOMMatrix().scale(k, k));
+  patCache.set(color, p);
+  return p;
+}
+function lineSeg(ctx, a, b) {
+  ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x + 0.1, b.y); ctx.stroke();
+}
+const BRUSHES = {
+  crayon: {   // 蠟筆：粗糙顆粒
+    icon: '🖍️', alpha: 1,
+    begin(ctx, color, w) { ctx.lineWidth = w; ctx.strokeStyle = crayonPattern(color); ctx.shadowBlur = 0; },
+    seg: lineSeg
+  },
+  marker: {   // 麥克筆：平滑實色
+    icon: '🖊️', alpha: 1,
+    begin(ctx, color, w) { ctx.lineWidth = w; ctx.strokeStyle = color; ctx.shadowBlur = 0; },
+    seg: lineSeg
+  },
+  water: {    // 水彩：柔邊、半透明，多畫幾次顏色會疊深
+    icon: '🖌️', alpha: 0.45,
+    begin(ctx, color, w) {
+      ctx.lineWidth = w * 1.3; ctx.strokeStyle = color;
+      ctx.shadowColor = color; ctx.shadowBlur = w * 0.5; ctx.shadowOffsetX = 0; ctx.shadowOffsetY = 0;
+    },
+    seg: lineSeg
+  }
+};
+const brushWidth = () => SIZES[state.sizeIdx] * S;
+
+/* ===================== 6. 畫布：作畫流程 ===================== */
+const cur = { mask: null, brush: null };
+let rafPending = false;
+
+function startPaint(p) {
+  const id = regionAt(p.x, p.y);
+  if (!id) return false;
+  const m = cur.mask = getMask(id);
+  pushUndo(m.x, m.y, m.w, m.h);
+  if (stroke.width < m.w || stroke.height < m.h) {
+    stroke.width = Math.max(stroke.width, m.w); stroke.height = Math.max(stroke.height, m.h);
+    sctx = stroke.getContext('2d');
+  }
+  sctx.setTransform(1, 0, 0, 1, 0, 0);
+  sctx.shadowBlur = 0;
+  sctx.clearRect(0, 0, stroke.width, stroke.height);
+  sctx.setTransform(1, 0, 0, 1, -m.x, -m.y);
+  sctx.lineCap = 'round'; sctx.lineJoin = 'round';
+  cur.brush = BRUSHES[state.tool];
+  cur.brush.begin(sctx, state.color, brushWidth());
+  live.style.opacity = cur.brush.alpha;
+  return true;
+}
+function schedule() { if (!rafPending) { rafPending = true; requestAnimationFrame(renderLive); } }
+// 把筆觸套上區域遮罩，顯示在 live 層
+function renderLive() {
+  rafPending = false;
+  const m = cur.mask; if (!m) return;
+  lctx.globalCompositeOperation = 'source-over';
+  lctx.clearRect(m.x, m.y, m.w, m.h);
+  lctx.drawImage(stroke, 0, 0, m.w, m.h, m.x, m.y, m.w, m.h);
+  lctx.globalCompositeOperation = 'destination-in';
+  lctx.drawImage(m.canvas, m.x, m.y);
+  lctx.globalCompositeOperation = 'source-over';
+}
+// 一筆結束：合併到顏料層
+function commitPaint() {
+  renderLive();
+  const m = cur.mask;
+  pctx.globalAlpha = cur.brush.alpha;
+  pctx.drawImage(live, m.x, m.y, m.w, m.h, m.x, m.y, m.w, m.h);
+  pctx.globalAlpha = 1;
+  lctx.clearRect(0, 0, S, S);
+  live.style.opacity = 1;
+  cur.mask = null;
+}
+function eraseSeg(a, b) {
+  pctx.save();
+  pctx.globalCompositeOperation = 'destination-out';
+  pctx.lineCap = 'round'; pctx.lineJoin = 'round'; pctx.lineWidth = brushWidth() * 1.5;
+  pctx.beginPath(); pctx.moveTo(a.x, a.y); pctx.lineTo(b.x + 0.1, b.y); pctx.stroke();
+  pctx.restore();
+}
+
+/* 復原：只存被改動的區域，節省記憶體 */
+const undoStack = []; let undoBytes = 0; const UNDO_MAX = 100e6;
+function pushUndo(x, y, w, h) {
+  const img = pctx.getImageData(x, y, w, h);
+  undoStack.push({ x, y, img }); undoBytes += w * h * 4;
+  while (undoStack.length > 1 && (undoBytes > UNDO_MAX || undoStack.length > 30)) {
+    const o = undoStack.shift(); undoBytes -= o.img.width * o.img.height * 4;
+  }
+}
+function undo() {
+  const o = undoStack.pop(); if (!o) return;
+  undoBytes -= o.img.width * o.img.height * 4;
+  pctx.putImageData(o.img, o.x, o.y);
+}
+
+/* 觸控：單指、觸控筆、忽略手掌 */
+let activeId = null, lastPen = 0, last = null, mode = null;
+function accept(e) {
+  const now = performance.now();
+  if (e.pointerType === 'pen') lastPen = now;
+  if (activeId !== null) return false;                       // 只認一根手指
+  if (e.pointerType === 'mouse' && e.button !== 0) return false;
+  if (e.pointerType === 'touch') {
+    if (now - lastPen < 1500) return false;                  // 用觸控筆時，忽略手掌
+    if (e.width > 60 || e.height > 60) return false;         // 接觸面積太大＝手掌
+  }
+  return true;
+}
+function toXY(e) {
+  const r = wrap.getBoundingClientRect();
+  return { x: (e.clientX - r.left) * S / r.width, y: (e.clientY - r.top) * S / r.height };
+}
+wrap.addEventListener('pointerdown', e => {
+  e.preventDefault();
+  if (!labels || !accept(e)) return;
+  const p = toXY(e);
+  if (state.tool === 'eraser') { pushUndo(0, 0, S, S); mode = 'erase'; eraseSeg(p, p); }
+  else { if (!startPaint(p)) return; mode = 'paint'; cur.brush.seg(sctx, p, p); schedule(); }
+  activeId = e.pointerId; last = p;
+  try { wrap.setPointerCapture(e.pointerId); } catch (_) {}
+});
+wrap.addEventListener('pointermove', e => {
+  if (e.pointerType === 'pen') lastPen = performance.now();
+  if (e.pointerId !== activeId) return;
+  const list = (e.getCoalescedEvents && e.getCoalescedEvents().length) ? e.getCoalescedEvents() : [e];
+  for (const ev of list) {
+    const p = toXY(ev);
+    if (mode === 'erase') eraseSeg(last, p); else cur.brush.seg(sctx, last, p);
+    last = p;
+  }
+  if (mode === 'paint') schedule();
+});
+function endStroke(e) {
+  if (e.pointerId !== activeId) return;
+  if (mode === 'paint') commitPaint();
+  activeId = null; mode = null;
+}
+wrap.addEventListener('pointerup', endStroke);
+wrap.addEventListener('pointercancel', endStroke);
+wrap.addEventListener('lostpointercapture', endStroke);
+
+/* ===================== 7. 介面 ===================== */
+const barB = $('barB'), colorBtn = $('colorBtn');
+const toolBtns = {};
+for (const [k, icon] of [...Object.keys(BRUSHES).map(k => [k, BRUSHES[k].icon]), ['eraser', '🧽']]) {
+  const b = document.createElement('button');
+  b.className = 't'; b.textContent = icon; b.setAttribute('aria-label', k);
+  b.onclick = () => setTool(k);
+  barB.insertBefore(b, colorBtn);
+  toolBtns[k] = b;
+}
+function setTool(k) {
+  state.tool = k;
+  if (k !== 'eraser') state.lastBrush = k;
+  for (const t in toolBtns) toolBtns[t].classList.toggle('on', t === k);
+  updateDots();
+}
+const swatches = [];
+function makeSwatch(color, parent) {
+  const b = document.createElement('button');
+  b.className = 'sw'; b.style.background = color; b.dataset.c = color;
+  b.onclick = () => { setColor(color); $('palOverlay').classList.remove('show'); };
+  parent.appendChild(b); swatches.push(b);
+}
+for (const c of COLORS) { makeSwatch(c, $('palette')); makeSwatch(c, $('palGrid')); }
+function setColor(c) {
+  state.color = c;
+  if (state.tool === 'eraser') setTool(state.lastBrush);   // 選顏色時自動換回筆刷
+  for (const s of swatches) s.classList.toggle('on', s.dataset.c === c);
+  updateDots();
+}
+function updateDots() {
+  const d = $('sizeDot'), px = DOT_PX[state.sizeIdx];
+  d.style.width = d.style.height = px + 'px';
+  d.style.background = state.tool === 'eraser' ? '#999' : state.color;
+  $('colorDot').style.background = state.color;
+}
+$('sizeBtn').onclick = () => { state.sizeIdx = (state.sizeIdx + 1) % 3; updateDots(); };
+$('undoBtn').onclick = undo;
+$('clearBtn').onclick = () => { pushUndo(0, 0, S, S); pctx.clearRect(0, 0, S, S); };  // 清除也能復原
+colorBtn.onclick = () => $('palOverlay').classList.add('show');
+$('palOverlay').onclick = e => { if (e.target.id === 'palOverlay') e.currentTarget.classList.remove('show'); };
+$('homeBtn').onclick = () => $('homeOverlay').classList.add('show');
+$('pageCard').onclick = () => $('homeOverlay').classList.remove('show');
+$('doneBtn').onclick = exportImage;
+
+/* 完成：存成圖片（手機用分享選單存到相簿；不支援時直接下載） */
+function exportImage() {
+  const c = document.createElement('canvas'); c.width = c.height = S;
+  const x = c.getContext('2d');
+  x.fillStyle = '#fff'; x.fillRect(0, 0, S, S);
+  x.drawImage(paint, 0, 0); x.drawImage(line, 0, 0);
+  const url = c.toDataURL('image/png');
+  const bin = atob(url.split(',')[1]), arr = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+  const blob = new Blob([arr], { type: 'image/png' });
+  const t = new Date(), pad = n => String(n).padStart(2, '0');
+  const name = `著色-${t.getFullYear()}${pad(t.getMonth() + 1)}${pad(t.getDate())}-${pad(t.getHours())}${pad(t.getMinutes())}${pad(t.getSeconds())}.png`;
+  cheer();
+  let file = null;
+  try { file = new File([blob], name, { type: 'image/png' }); } catch (_) {}
+  if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
+    navigator.share({ files: [file] }).catch(err => { if (!err || err.name !== 'AbortError') download(blob, name); });
+  } else download(blob, name);
+}
+function download(blob, name) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+}
+function cheer() {
+  const c = $('cheer'), s = c.firstElementChild;
+  c.classList.add('show'); s.style.animation = 'none'; void s.offsetWidth; s.style.animation = '';
+  clearTimeout(cheer.t); cheer.t = setTimeout(() => c.classList.remove('show'), 1300);
+}
+
+/* 版面：手機/平板判斷、畫布縮放（只改顯示大小，不動像素） */
+function fit() {
+  const r = stage.getBoundingClientRect();
+  const s = Math.max(100, Math.floor(Math.min(r.width, r.height) - 16));
+  wrap.style.width = wrap.style.height = s + 'px';
+}
+function layout() {
+  document.body.classList.toggle('tablet', Math.min(innerWidth, innerHeight) >= 600);
+  fit();
+}
+window.addEventListener('resize', layout);
+if (window.ResizeObserver) new ResizeObserver(fit).observe(stage);
+
+// 防止長按選單、雙指縮放
+document.addEventListener('contextmenu', e => e.preventDefault());
+document.addEventListener('gesturestart', e => e.preventDefault());
+document.addEventListener('touchmove', e => { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
+
+/* ===================== 8. 啟動 ===================== */
+setTool('crayon'); setColor(state.color); layout();
+setTimeout(() => {
+  drawApple(nctx);
+  buildRegions();
+  // 首頁縮圖
+  const t = document.createElement('canvas'); t.width = t.height = 400;
+  const tx = t.getContext('2d'); tx.fillStyle = '#fff'; tx.fillRect(0, 0, 400, 400); tx.drawImage(line, 0, 0, 400, 400);
+  $('pageThumb').src = t.toDataURL();
+  $('loading').classList.remove('show');
+}, 50);
+
+// 離線：只有放在網站（https）上、且有 sw.js 時才會啟用
+if ('serviceWorker' in navigator && window.isSecureContext && location.protocol !== 'file:') {
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}
+</script>
+</body>
+</html>
