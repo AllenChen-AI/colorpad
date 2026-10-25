@@ -114,6 +114,8 @@ const DPR = window.devicePixelRatio || 1;
 // 畫布內部解析度固定（依螢幕短邊 × DPR），轉螢幕只縮放顯示，不會變形或遺失顏色
 const S = Math.max(1024, Math.min(2048, Math.round(Math.min(screen.width, screen.height) * DPR)));
 const GAP = Math.max(2, Math.round(S / 400));   // 線條加粗幾像素來補小缺口
+const LINE_PX = Math.round(S * 0.014);                  // 線稿的線寬（和 drawApple 的 lineWidth 一致）
+const FILL_R = GAP + Math.round(LINE_PX * 0.6);         // 顏色往黑線底下延伸的距離
 const SIZES = [0.015, 0.035, 0.07];             // 三段粗細（相對畫布寬）
 const DOT_PX = [12, 22, 34];                     // 粗細按鈕上圓點大小
 
