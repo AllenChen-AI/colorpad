@@ -1,5 +1,5 @@
 // 離線快取：更新 App 時把 v1 改成 v2，手機就會抓新版
-const CACHE = 'coloring-v4';
+const CACHE = 'coloring-v5';
 const FILES = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', e => {

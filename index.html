@@ -55,7 +55,7 @@ button.t.on{ background:#ffd34d; box-shadow:0 0 0 4px #ff9f1a; }
 body.tablet #palette{ display:grid; gap:6px; padding:8px; background:var(--bar); overflow:auto;
   grid-template-columns:repeat(auto-fill,var(--btn)); justify-content:center; max-height:38vh; }
 @media (orientation:landscape){
-  body.tablet #palette{ grid-template-columns:repeat(6,var(--btn)); max-height:none; align-content:center; }
+  body.tablet #palette{ grid-template-columns:repeat(6,var(--btn)); max-height:none; align-content:start; }
 }
 body.tablet #colorBtn{ display:none; }
 .sw{ width:var(--btn); height:var(--btn); border-radius:50%; border:3px solid rgba(0,0,0,.15);
@@ -69,19 +69,49 @@ body.tablet #colorBtn{ display:none; }
 #palGrid,#brushGrid{ background:#fff; border-radius:20px; padding:14px; display:grid; gap:8px;
   grid-template-columns:repeat(auto-fill,var(--btn)); justify-content:center;
   width:min(92vw,560px); max-height:85vh; overflow:auto; }
+#homeBox{ display:flex; flex-direction:column; align-items:center; gap:12px; max-width:94vw; max-height:92vh; }
+#homeHead{ display:none; align-items:center; gap:14px; background:#fff; border-radius:20px; padding:8px 18px 8px 8px; }
+#homeHead.show{ display:flex; }
+#homeHead .title{ font-size:28px; font-weight:700; max-width:60vw; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 #pages{ display:flex; flex-wrap:wrap; gap:16px; justify-content:center; align-content:center;
-  max-width:94vw; max-height:90vh; overflow:auto; padding:12px; }
+  overflow:auto; padding:12px; min-height:0; }
 .page{ width:min(40vmin,240px); aspect-ratio:1; border:none; border-radius:24px; background:#fff;
   padding:10px; box-shadow:0 6px 0 rgba(0,0,0,.2); cursor:pointer; font-size:min(16vmin,96px); }
 .page img{ width:100%; height:100%; display:block; object-fit:contain; }
 .page.on{ box-shadow:0 0 0 6px #ff9f1a; }
 .page.add{ background:#fff3c4; border:4px dashed #ffb300; }
 .page img{ pointer-events:none; }
-#delOverlay{ background:rgba(0,0,0,.5); z-index:30; }
-#delBox{ background:#fff; border-radius:24px; padding:18px; display:flex; flex-direction:column; align-items:center; gap:16px; }
-#delBox img{ width:min(50vmin,260px); height:min(50vmin,260px); object-fit:contain; border:2px solid #eee; border-radius:12px; }
-#delBtns{ display:flex; gap:32px; }
-#delYes{ background:#ffb3b3; }
+.page.folder{ display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; background:#e3f2ff; }
+.page.folder .fico{ font-size:min(14vmin,84px); line-height:1; }
+.page.folder .fname{ font-size:min(4.6vmin,22px); font-weight:700; max-width:100%; overflow:hidden; display:-webkit-box;
+  -webkit-line-clamp:2; -webkit-box-orient:vertical; word-break:break-all; line-height:1.2; }
+.page.newfolder{ background:#e3f2ff; border:4px dashed #4aa3ff; font-size:min(11vmin,64px); }
+button.t.danger{ background:#ffb3b3; }
+#pickOverlay,#nameOverlay,#actOverlay,#moveOverlay{ background:rgba(0,0,0,.5); z-index:30; }
+#actBox{ background:#fff; border-radius:24px; padding:18px; display:flex; flex-direction:column; align-items:center; gap:14px; max-width:92vw; }
+#actPrev img{ width:min(46vmin,240px); height:min(46vmin,240px); object-fit:contain; border:2px solid #eee; border-radius:12px; display:block; }
+#actPrev .fico{ font-size:72px; line-height:1; text-align:center; }
+#actPrev .fname{ font-size:26px; font-weight:700; text-align:center; max-width:70vw; word-break:break-all; }
+#actHint{ font-size:16px; color:#666; text-align:center; max-width:70vw; }
+#actBtns{ display:flex; gap:28px; }
+#moveBox{ background:#fff; border-radius:20px; padding:14px; display:grid; gap:10px; grid-template-columns:repeat(auto-fill,120px);
+  justify-content:center; width:min(92vw,620px); max-height:85vh; overflow:auto; }
+#moveBox .page{ width:120px; padding:6px; }
+#moveBox .page .fico{ font-size:44px; }
+#moveBox .page .fname{ font-size:16px; }
+#nameBox{ background:#fff; border-radius:24px; padding:20px; display:flex; flex-direction:column; align-items:center; gap:16px; width:min(90vw,420px); }
+#nameIcon{ font-size:56px; line-height:1; }
+#nameIn{ width:100%; font-size:28px; padding:12px 16px; border:3px solid #ffb300; border-radius:16px; outline:none;
+  user-select:text; -webkit-user-select:text; }
+#nameBtns{ display:flex; gap:32px; }
+#pickBox{ background:#fff; border-radius:24px; padding:16px; display:flex; flex-direction:column; gap:14px; align-items:center; }
+#pkSV{ width:min(86vw,340px); height:min(36vh,260px); border-radius:14px; touch-action:none; }
+#pkHue{ width:min(86vw,340px); height:40px; border-radius:20px; touch-action:none; }
+#pkRow{ display:flex; gap:14px; align-items:center; }
+#pkPrev{ width:64px; height:64px; border-radius:50%; border:3px solid #fff; box-shadow:0 0 0 2px rgba(0,0,0,.25); }
+#pkDel{ background:#ffb3b3; display:none; }
+#pickBox.edit #pkDel{ display:flex; }
+.sw.add{ background:conic-gradient(#f33,#fd3,#3d5,#3cf,#53f,#f3c,#f33); font-size:28px; display:flex; align-items:center; justify-content:center; }
 #cheer{ pointer-events:none; }
 #cheer .star{ font-size:40vmin; animation:pop 1.3s ease forwards; }
 @keyframes pop{ 0%{transform:scale(.2) rotate(-30deg);opacity:0} 40%{transform:scale(1.1) rotate(10deg);opacity:1} 100%{transform:scale(1);opacity:0} }
@@ -113,8 +143,11 @@ body.tablet #colorBtn{ display:none; }
 </div>
 <div id="palOverlay" class="ov"><div id="palGrid"></div></div>
 <div id="brushOverlay" class="ov"><div id="brushGrid"></div></div>
-<div id="homeOverlay" class="ov"><div id="pages"></div></div>
-<div id="delOverlay" class="ov"><div id="delBox"><img id="delImg" alt=""><div id="delBtns"><button class="t" id="delNo" aria-label="取消">❌</button><button class="t" id="delYes" aria-label="刪除">🗑️</button></div></div></div>
+<div id="homeOverlay" class="ov"><div id="homeBox"><div id="homeHead"></div><div id="pages"></div></div></div>
+<div id="actOverlay" class="ov"><div id="actBox"><div id="actPrev"></div><div id="actHint"></div><div id="actBtns"></div></div></div>
+<div id="moveOverlay" class="ov"><div id="moveBox"></div></div>
+<div id="nameOverlay" class="ov"><div id="nameBox"><div id="nameIcon">📁</div><input id="nameIn" maxlength="20" placeholder="名稱" autocomplete="off"><div id="nameBtns"><button class="t" id="nameNo" aria-label="取消">❌</button><button class="t" id="nameYes" aria-label="確定">✅</button></div></div></div>
+<div id="pickOverlay" class="ov"><div id="pickBox"><canvas id="pkSV"></canvas><canvas id="pkHue"></canvas><div id="pkRow"><div id="pkPrev"></div><button class="t" id="pkNo" aria-label="取消">❌</button><button class="t" id="pkDel" aria-label="刪除顏色">🗑️</button><button class="t" id="pkYes" aria-label="確定">✅</button></div></div></div>
 <input type="file" id="fileIn" accept="image/png,image/jpeg" hidden>
 <div id="cheer" class="ov"><div class="star">⭐</div></div>
 <div id="loading" class="ov show"><div class="spin">🎨</div></div>
@@ -268,6 +301,11 @@ function regionAt(x, y) {
 // 產生區域遮罩（稍微擴大到黑線底下，避免顏色和線之間留白縫）
 function getMask(id) {
   if (maskCache.has(id)) return maskCache.get(id);
+  if (regionArea[id] === S * S) {                       // 空白畫布：整張都能畫
+    const c = document.createElement('canvas'); c.width = c.height = S;
+    const cx = c.getContext('2d'); cx.fillStyle = '#000'; cx.fillRect(0, 0, S, S);
+    const m0 = { canvas: c, x: 0, y: 0, w: S, h: S }; maskCache.set(id, m0); return m0;
+  }
   const b = regionBox[id], pad = FILL_R + 2;
   const x = Math.max(0, b.x0 - pad), y = Math.max(0, b.y0 - pad);
   const w = Math.min(S, b.x1 + pad + 1) - x, h = Math.min(S, b.y1 + pad + 1) - y;
@@ -472,7 +510,8 @@ function startPaint(p) {
   const id = regionAt(p.x, p.y);
   if (!id) return false;
   const m = cur.mask = getMask(id);
-  pushUndo(m.x, m.y, m.w, m.h);
+  cur.M = Math.round(brushWidth() * 2 + S * 0.03);   // 一筆可能影響到的範圍（筆刷大小的 2 倍＋餘裕）
+  cur.bb = cur.dirty = null; grow(p);
   if (stroke.width < m.w || stroke.height < m.h) {
     stroke.width = Math.max(stroke.width, m.w); stroke.height = Math.max(stroke.height, m.h);
     sctx = stroke.getContext('2d');
@@ -487,28 +526,49 @@ function startPaint(p) {
   live.style.opacity = cur.brush.alpha;
   return true;
 }
+// 記錄這一筆碰到的範圍：bb＝整筆（復原用）、dirty＝自上次重畫後新增的範圍（重畫用）
+function grow(p) {
+  for (const k of ['bb', 'dirty']) {
+    const b = cur[k];
+    if (!b) cur[k] = { x0: p.x, y0: p.y, x1: p.x, y1: p.y };
+    else { if (p.x < b.x0) b.x0 = p.x; if (p.x > b.x1) b.x1 = p.x; if (p.y < b.y0) b.y0 = p.y; if (p.y > b.y1) b.y1 = p.y; }
+  }
+}
+// 範圍加上餘裕，並限制在遮罩內
+function rectOf(b, m, M) {
+  const x0 = Math.max(m.x, Math.floor(b.x0 - M)), y0 = Math.max(m.y, Math.floor(b.y0 - M));
+  const x1 = Math.min(m.x + m.w, Math.ceil(b.x1 + M)), y1 = Math.min(m.y + m.h, Math.ceil(b.y1 + M));
+  return (x1 > x0 && y1 > y0) ? { x: x0, y: y0, w: x1 - x0, h: y1 - y0 } : null;
+}
 function schedule() { if (!rafPending) { rafPending = true; requestAnimationFrame(renderLive); } }
-// 把筆觸套上區域遮罩，顯示在 live 層
+// 把筆觸套上區域遮罩，顯示在 live 層（只重畫新增的範圍，大畫布也不會卡）
 function renderLive() {
   rafPending = false;
-  const m = cur.mask; if (!m) return;
+  const m = cur.mask; if (!m || !cur.dirty) return;
+  const r = rectOf(cur.dirty, m, cur.M); cur.dirty = null;
+  if (!r) return;
+  lctx.save();                                        // 限制在這個範圍內，否則 destination-in 會把範圍外的筆跡也清掉
+  lctx.beginPath(); lctx.rect(r.x, r.y, r.w, r.h); lctx.clip();
   lctx.globalCompositeOperation = 'source-over';
-  lctx.clearRect(m.x, m.y, m.w, m.h);
-  lctx.drawImage(stroke, 0, 0, m.w, m.h, m.x, m.y, m.w, m.h);
+  lctx.clearRect(r.x, r.y, r.w, r.h);
+  lctx.drawImage(stroke, r.x - m.x, r.y - m.y, r.w, r.h, r.x, r.y, r.w, r.h);
   lctx.globalCompositeOperation = 'destination-in';
-  lctx.drawImage(m.canvas, m.x, m.y);
-  lctx.globalCompositeOperation = 'source-over';
+  lctx.drawImage(m.canvas, r.x - m.x, r.y - m.y, r.w, r.h, r.x, r.y, r.w, r.h);
+  lctx.restore();
 }
-// 一筆結束：合併到顏料層
+// 一筆結束：合併到顏料層（合併前先存復原）
 function commitPaint() {
   renderLive();
-  const m = cur.mask;
-  pctx.globalAlpha = cur.brush.alpha;
-  pctx.drawImage(live, m.x, m.y, m.w, m.h, m.x, m.y, m.w, m.h);
-  pctx.globalAlpha = 1;
+  const m = cur.mask, r = rectOf(cur.bb, m, cur.M);
+  if (r) {
+    pushUndo(r.x, r.y, r.w, r.h);
+    pctx.globalAlpha = cur.brush.alpha;
+    pctx.drawImage(live, r.x, r.y, r.w, r.h, r.x, r.y, r.w, r.h);
+    pctx.globalAlpha = 1;
+  }
   lctx.clearRect(0, 0, S, S);
   live.style.opacity = 1;
-  cur.mask = null;
+  cur.mask = null; cur.bb = cur.dirty = null;
 }
 function eraseSeg(a, b) {
   pctx.save();
@@ -565,7 +625,7 @@ wrap.addEventListener('pointermove', e => {
   const list = (e.getCoalescedEvents && e.getCoalescedEvents().length) ? e.getCoalescedEvents() : [e];
   for (const ev of list) {
     const p = toXY(ev);
-    if (mode === 'erase') eraseSeg(last, p); else cur.brush.seg(sctx, last, p);
+    if (mode === 'erase') eraseSeg(last, p); else { cur.brush.seg(sctx, last, p); grow(last); grow(p); }
     last = p;
   }
   if (mode === 'paint') schedule();
@@ -607,13 +667,120 @@ function setTool(k) {
   updateDots();
 }
 const swatches = [];
-function makeSwatch(color, parent) {
+function makeSwatch(color, parent, custom) {
   const b = document.createElement('button');
-  b.className = 'sw'; b.style.background = color; b.dataset.c = color;
-  b.onclick = () => { setColor(color); $('palOverlay').classList.remove('show'); };
+  b.className = 'sw' + (custom ? ' cs' : ''); b.style.background = color; b.dataset.c = color;
+  if (!custom) b.onclick = () => { setColor(color); $('palOverlay').classList.remove('show'); };
   parent.appendChild(b); swatches.push(b);
+  return b;
 }
 for (const c of COLORS) { makeSwatch(c, $('palette')); makeSwatch(c, $('palGrid')); }
+
+/* ---- 自訂顏色：色相條＋明暗方塊，最多存 12 個（存在這台裝置，長按可修改或刪除） ---- */
+const CUSTOM_MAX = 12;
+let customColors = [];
+function loadCustom() {
+  try {
+    const a = JSON.parse(localStorage.getItem('coloring-custom') || '[]');
+    if (Array.isArray(a)) customColors = a.filter(x => /^#[0-9a-f]{6}$/i.test(x)).slice(0, CUSTOM_MAX);
+  } catch (_) {}
+}
+function saveCustom() { try { localStorage.setItem('coloring-custom', JSON.stringify(customColors)); } catch (_) {} }
+// 色盤最後面：➕ 按鈕＋自訂的顏色
+function renderCustom() {
+  for (let i = swatches.length - 1; i >= 0; i--) if (swatches[i].classList.contains('cs')) swatches.splice(i, 1);
+  for (const par of [$('palette'), $('palGrid')]) {
+    par.querySelectorAll('.cs, .add').forEach(n => n.remove());
+    const add = document.createElement('button');
+    add.className = 'sw add'; add.textContent = '➕'; add.setAttribute('aria-label', '自訂顏色');
+    add.onclick = () => openPicker(-1);
+    par.appendChild(add);
+    customColors.forEach((c, i) => {
+      const b = makeSwatch(c, par, true);
+      press(b, () => { setColor(c); $('palOverlay').classList.remove('show'); }, () => openPicker(i));
+    });
+  }
+  for (const s of swatches) s.classList.toggle('on', s.dataset.c === state.color);
+}
+// 短按／長按（0.7 秒）共用：長按時不會再觸發短按
+function press(el, onTap, onLong) {
+  let t = null, fired = false, sx = 0, sy = 0;
+  const clear = () => { clearTimeout(t); t = null; };
+  el.addEventListener('pointerdown', e => {
+    fired = false; sx = e.clientX; sy = e.clientY; clear();
+    if (onLong) t = setTimeout(() => { fired = true; onLong(); }, 700);
+  });
+  el.addEventListener('pointermove', e => { if (t && Math.hypot(e.clientX - sx, e.clientY - sy) > 12) clear(); });
+  for (const n of ['pointerup', 'pointercancel', 'pointerleave']) el.addEventListener(n, clear);
+  el.onclick = () => { if (fired) { fired = false; return; } onTap(); };
+}
+const pk = { h: 0, s: 1, v: 1, edit: -1 };
+const clamp01 = v => Math.max(0, Math.min(1, v));
+function hsv2hex(h, s, v) {
+  const f = n => { const k = (n + h / 60) % 6; return v - v * s * Math.max(0, Math.min(k, 4 - k, 1)); };
+  const to = x => Math.round(x * 255).toString(16).padStart(2, '0');
+  return '#' + to(f(5)) + to(f(3)) + to(f(1));
+}
+function rgb2hsv(r, g, b) {
+  r /= 255; g /= 255; b /= 255;
+  const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn;
+  let h = 0;
+  if (d) { h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; h *= 60; if (h < 0) h += 360; }
+  return { h, s: mx ? d / mx : 0, v: mx };
+}
+function parseColor(c) {                                  // 任何 CSS 顏色 → [r,g,b]
+  const x = document.createElement('canvas'); x.width = x.height = 1;
+  const t = x.getContext('2d'); t.fillStyle = c; t.fillRect(0, 0, 1, 1);
+  const d = t.getImageData(0, 0, 1, 1).data; return [d[0], d[1], d[2]];
+}
+const svC = $('pkSV'), hueC = $('pkHue');
+function drawPicker() {
+  let x = svC.getContext('2d'), w = svC.width, hh = svC.height;
+  x.fillStyle = `hsl(${pk.h},100%,50%)`; x.fillRect(0, 0, w, hh);
+  let g = x.createLinearGradient(0, 0, w, 0); g.addColorStop(0, '#fff'); g.addColorStop(1, 'rgba(255,255,255,0)');
+  x.fillStyle = g; x.fillRect(0, 0, w, hh);
+  g = x.createLinearGradient(0, 0, 0, hh); g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, '#000');
+  x.fillStyle = g; x.fillRect(0, 0, w, hh);
+  const r = Math.max(9, w / 28), lw = Math.max(3, w / 90);
+  x.beginPath(); x.arc(pk.s * w, (1 - pk.v) * hh, r, 0, 6.2832);
+  x.lineWidth = lw + 3; x.strokeStyle = '#000'; x.stroke(); x.lineWidth = lw; x.strokeStyle = '#fff'; x.stroke();
+  x = hueC.getContext('2d'); w = hueC.width; hh = hueC.height;
+  g = x.createLinearGradient(0, 0, w, 0);
+  for (let i = 0; i <= 6; i++) g.addColorStop(i / 6, `hsl(${i * 60},100%,50%)`);
+  x.fillStyle = g; x.fillRect(0, 0, w, hh);
+  const mx = pk.h / 360 * w;
+  x.fillStyle = '#fff'; x.fillRect(mx - lw - 1, 0, 2 * lw + 2, hh); x.fillStyle = '#000'; x.fillRect(mx - 1, 0, 2, hh);
+  $('pkPrev').style.background = hsv2hex(pk.h, pk.s, pk.v);
+}
+function dragOn(c, fn) {
+  let on = false;
+  c.addEventListener('pointerdown', e => { e.preventDefault(); on = true; try { c.setPointerCapture(e.pointerId); } catch (_) {} fn(e); });
+  c.addEventListener('pointermove', e => { if (on) fn(e); });
+  for (const n of ['pointerup', 'pointercancel']) c.addEventListener(n, () => { on = false; });
+}
+dragOn(svC, e => { const r = svC.getBoundingClientRect(); pk.s = clamp01((e.clientX - r.left) / r.width); pk.v = 1 - clamp01((e.clientY - r.top) / r.height); drawPicker(); });
+dragOn(hueC, e => { const r = hueC.getBoundingClientRect(); pk.h = Math.min(359.9, clamp01((e.clientX - r.left) / r.width) * 360); drawPicker(); });
+function openPicker(idx) {
+  pk.edit = idx;
+  const [r, g, b] = parseColor(idx >= 0 ? customColors[idx] : state.color);
+  Object.assign(pk, rgb2hsv(r, g, b));
+  $('pickBox').classList.toggle('edit', idx >= 0);
+  $('pickOverlay').classList.add('show');
+  for (const c of [svC, hueC]) { const q = c.getBoundingClientRect(); c.width = Math.round(q.width * DPR); c.height = Math.round(q.height * DPR); }
+  drawPicker();
+}
+function closePicker() { $('pickOverlay').classList.remove('show'); }
+$('pkNo').onclick = closePicker;
+$('pkDel').onclick = () => { if (pk.edit >= 0) { customColors.splice(pk.edit, 1); saveCustom(); renderCustom(); } closePicker(); };
+$('pkYes').onclick = () => {
+  const hex = hsv2hex(pk.h, pk.s, pk.v);
+  if (pk.edit >= 0) customColors[pk.edit] = hex;
+  else if (!customColors.includes(hex)) { customColors.push(hex); if (customColors.length > CUSTOM_MAX) customColors.shift(); }
+  saveCustom(); renderCustom(); setColor(hex);
+  closePicker(); $('palOverlay').classList.remove('show');
+};
+loadCustom(); renderCustom();
+
 function setColor(c) {
   state.color = c;
   if (state.tool === 'eraser') setTool(state.lastBrush);   // 選顏色時自動換回筆刷
@@ -632,7 +799,7 @@ $('clearBtn').onclick = () => { pushUndo(0, 0, S, S); pctx.clearRect(0, 0, S, S)
 colorBtn.onclick = () => $('palOverlay').classList.add('show');
 $('palOverlay').onclick = e => { if (e.target.id === 'palOverlay') e.currentTarget.classList.remove('show'); };
 $('homeBtn').onclick = () => { renderPages(); $('homeOverlay').classList.add('show'); };
-$('homeOverlay').onclick = e => { if (e.target.id === 'homeOverlay' || e.target.id === 'pages') e.currentTarget.classList.remove('show'); };
+$('homeOverlay').onclick = e => { if (['homeOverlay', 'pages', 'homeBox'].includes(e.target.id)) e.currentTarget.classList.remove('show'); };
 $('doneBtn').onclick = exportImage;
 
 /* 完成：存成圖片（手機用分享選單存到相簿；不支援時直接下載） */
@@ -686,28 +853,40 @@ document.addEventListener('touchmove', e => { if (e.touches.length > 1) e.preven
 
 /* ===================== 9. 線稿頁面與匯入（圖片只在本機處理，不會上傳） ===================== */
 const MIN_LINE = Math.round(S * 0.008);              // 匯入線稿的最細線寬，太細會自動加粗
-const pages = [{ name: '蘋果', draw: drawApple }];    // 頁面清單：內建 + 匯入
+const pages = [{ name: '蘋果', draw: drawApple }, { name: '空白畫布', blank: true }];   // 頁面清單：內建 + 匯入
+let folders = [];                                    // 資料夾 { id, name, created }
+let curFolder = null;                                // 首頁目前瀏覽的資料夾（null＝最外層）
 let curPage = -1;
 
 function setLineWidth(px) { FILL_R = GAP + Math.max(1, Math.round(px * 0.6)); }
 
+// 空白畫布：沒有線稿，整張都能畫
+function setBlank() {
+  nctx.clearRect(0, 0, S, S); setLineWidth(LINE_PX);
+  labels = new Int32Array(S * S).fill(1); wall = null;
+  regionArea = [0, S * S]; regionBox = [null, { x0: 0, y0: 0, x1: S - 1, y1: S - 1 }];
+  maskCache.clear();
+}
 // 載入第 i 頁：畫線稿 → 計算區域 → 清空顏料與復原（成功回傳 true）
 async function loadPage(i) {
   $('loading').classList.add('show');
   await new Promise(r => setTimeout(r, 30));          // 讓轉圈圈先顯示
   try {
     const pg = pages[i];
-    if (pg.draw) { pg.draw(nctx); setLineWidth(LINE_PX); }
-    else setLineWidth(await drawImported(pg.blob));
-    buildRegions();
+    if (pg.blank) setBlank();
+    else {
+      if (pg.draw) { pg.draw(nctx); setLineWidth(LINE_PX); }
+      else setLineWidth(await drawImported(pg.blob));
+      buildRegions();
+    }
     pctx.clearRect(0, 0, S, S); lctx.clearRect(0, 0, S, S);
     undoStack.length = 0; undoBytes = 0;
-    pg.thumb = makeThumb();
+    pg.thumb = pg.blank ? null : makeThumb();
     curPage = i;
     return true;
   } catch (err) {
     console.warn(err);
-    if (!pages[i].draw) { pages.splice(i, 1); if (i < curPage) curPage--; }   // 讀不到的線稿從清單移除，保留原本的畫
+    if (pages[i].blob) { pages.splice(i, 1); if (i < curPage) curPage--; }   // 讀不到的匯入線稿從清單移除，保留原本的畫
     cheer('❌');
     return false;
   } finally {
@@ -784,51 +963,79 @@ function makeThumb() {
   return t.toDataURL();
 }
 
-// 首頁：列出所有線稿＋「➕」匯入按鈕（長按匯入的線稿 0.7 秒可刪除）
+/* ===================== 10. 首頁、資料夾、匯入線稿的保存（存在這台裝置的瀏覽器裡，不會上傳） ===================== */
+const folderOf = id => folders.find(f => f.id === id);
+const inView = pg => (pg.folderId == null ? null : pg.folderId) === curFolder;
+const pageRec = pg => ({ id: pg.id, blob: pg.blob, thumb: pg.thumb, created: pg.created, folderId: pg.folderId == null ? null : pg.folderId });
+function mkBtn(icon, label, fn, cls) {
+  const b = document.createElement('button');
+  b.className = 't' + (cls ? ' ' + cls : ''); b.textContent = icon; b.setAttribute('aria-label', label); b.onclick = fn;
+  return b;
+}
+function folderCardInner(b, icon, name) {
+  b.innerHTML = '<span class="fico"></span><span class="fname"></span>';
+  b.children[0].textContent = icon; b.children[1].textContent = name;
+}
+
+// 首頁：最外層＝資料夾＋未分類的線稿；進入資料夾後只看那個資料夾（長按可管理）
 function renderPages() {
+  if (curFolder != null && !folderOf(curFolder)) curFolder = null;
+  const f = curFolder != null ? folderOf(curFolder) : null;
+  const head = $('homeHead'); head.innerHTML = ''; head.classList.toggle('show', !!f);
+  if (f) {
+    const t = document.createElement('div'); t.className = 'title'; t.textContent = '📁 ' + f.name;
+    head.append(mkBtn('⬅️', '返回', () => { curFolder = null; renderPages(); }), t);
+  }
   const box = $('pages'); box.innerHTML = '';
+  if (!f) for (const fd of folders) {
+    const b = document.createElement('button');
+    b.className = 'page folder'; b.setAttribute('aria-label', fd.name); folderCardInner(b, '📁', fd.name);
+    press(b, () => { curFolder = fd.id; renderPages(); }, () => askFolderAction(fd));
+    box.appendChild(b);
+  }
   pages.forEach((pg, i) => {
+    if (!inView(pg)) return;
     const b = document.createElement('button');
     b.className = 'page' + (i === curPage ? ' on' : '');
     b.setAttribute('aria-label', pg.name);
     if (pg.thumb) { const im = document.createElement('img'); im.src = pg.thumb; im.alt = ''; im.draggable = false; b.appendChild(im); }
-    else b.textContent = '🖼️';
-    pressable(b, pg);
+    else b.textContent = pg.blank ? '📄' : '🖼️';
+    press(b, () => {
+      $('homeOverlay').classList.remove('show');
+      const k = pages.indexOf(pg);
+      if (k >= 0 && k !== curPage) loadPage(k);
+    }, pg.blob ? () => askPageAction(pg) : null);        // 內建的蘋果、空白畫布不能刪
     box.appendChild(b);
   });
   const add = document.createElement('button');
   add.className = 'page add'; add.textContent = '➕'; add.setAttribute('aria-label', '匯入線稿');
   add.onclick = () => $('fileIn').click();
   box.appendChild(add);
-}
-// 短按＝開啟；長按（只限匯入的線稿）＝詢問是否刪除
-function pressable(b, pg) {
-  let t = null, fired = false, sx = 0, sy = 0;
-  const clear = () => { clearTimeout(t); t = null; };
-  b.addEventListener('pointerdown', e => {
-    fired = false; sx = e.clientX; sy = e.clientY; clear();
-    if (!pg.blob) return;                              // 內建的蘋果不能刪
-    t = setTimeout(() => { fired = true; askDelete(pg); }, 700);
-  });
-  b.addEventListener('pointermove', e => { if (t && Math.hypot(e.clientX - sx, e.clientY - sy) > 12) clear(); });
-  for (const n of ['pointerup', 'pointercancel', 'pointerleave']) b.addEventListener(n, clear);
-  b.onclick = () => {
-    if (fired) { fired = false; return; }
-    $('homeOverlay').classList.remove('show');
-    const i = pages.indexOf(pg);
-    if (i >= 0 && i !== curPage) loadPage(i);
-  };
+  if (!f) {
+    const nf = document.createElement('button');
+    nf.className = 'page newfolder'; nf.textContent = '📁➕'; nf.setAttribute('aria-label', '新增資料夾');
+    nf.onclick = async () => {
+      const n = await askName('📁', '');
+      if (n === null) return;
+      const nfd = await createFolder(n || '新資料夾');
+      curFolder = nfd.id; renderPages();                   // 建好後直接進去，馬上可以匯入
+    };
+    box.appendChild(nf);
+  }
 }
 
-/* ===================== 10. 匯入線稿的保存與刪除（存在這台裝置的瀏覽器裡，不會上傳） ===================== */
-// IndexedDB 小工具：資料庫 coloring-book，裡面一個 pages 倉庫
+// IndexedDB 小工具：資料庫 coloring-book（版本 2），倉庫 pages（線稿）、folders（資料夾）
 const DB = (() => {
   let dbp = null;
   function open() {
     if (!dbp) dbp = new Promise((res, rej) => {
       try {
-        const r = indexedDB.open('coloring-book', 1);
-        r.onupgradeneeded = () => r.result.createObjectStore('pages', { keyPath: 'id', autoIncrement: true });
+        const r = indexedDB.open('coloring-book', 2);
+        r.onupgradeneeded = () => {
+          const d = r.result;
+          for (const s of ['pages', 'folders'])
+            if (!d.objectStoreNames.contains(s)) d.createObjectStore(s, { keyPath: 'id', autoIncrement: true });
+        };
         r.onsuccess = () => res(r.result);
         r.onerror = () => rej(r.error || new Error('db open'));
         r.onblocked = () => rej(new Error('db blocked'));
@@ -836,16 +1043,17 @@ const DB = (() => {
     }).catch(e => { dbp = null; throw e; });
     return dbp;
   }
-  const run = (mode, fn) => open().then(db => new Promise((res, rej) => {
-    const tx = db.transaction('pages', mode);
-    const rq = fn(tx.objectStore('pages'));
+  const run = (store, mode, fn) => open().then(db => new Promise((res, rej) => {
+    const tx = db.transaction(store, mode);
+    const rq = fn(tx.objectStore(store));
     tx.oncomplete = () => res(rq.result);
     tx.onerror = tx.onabort = () => rej(tx.error || new Error('db tx'));
   }));
   return {
-    all: () => run('readonly', s => s.getAll()),
-    add: rec => run('readwrite', s => s.add(rec)),
-    del: id => run('readwrite', s => s.delete(id))
+    all: s => run(s, 'readonly', o => o.getAll()),
+    add: (s, rec) => run(s, 'readwrite', o => o.add(rec)),
+    put: (s, rec) => run(s, 'readwrite', o => o.put(rec)),
+    del: (s, id) => run(s, 'readwrite', o => o.delete(id))
   };
 })();
 
@@ -869,7 +1077,8 @@ async function normalizeFile(file) {
 // 保存到資料庫；失敗（無痕模式、空間不足）時只提示 ⚠️，這次仍可正常使用
 async function saveNew(pg) {
   try {
-    pg.id = await DB.add({ blob: pg.blob, thumb: pg.thumb, created: Date.now() });
+    const rec = pageRec(pg); delete rec.id;
+    pg.id = await DB.add('pages', rec);
     if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});   // 請瀏覽器別自動清掉
   } catch (err) { console.warn(err); cheer('⚠️'); }
 }
@@ -883,35 +1092,123 @@ $('fileIn').onchange = async e => {
   let blob;
   try { blob = await normalizeFile(f); }
   catch (err) { console.warn(err); $('loading').classList.remove('show'); cheer('❌'); return; }
-  const pg = { name: '匯入', blob };
+  const pg = { name: '匯入', blob, created: Date.now(), folderId: curFolder };   // 匯入到目前瀏覽的資料夾
   pages.push(pg);
   if (await loadPage(pages.length - 1)) saveNew(pg);
 };
 
-// 刪除：長按後跳出確認（❌ 取消 / 🗑️ 刪除）
-let delPg = null;
-function askDelete(pg) { delPg = pg; $('delImg').src = pg.thumb || ''; $('delOverlay').classList.add('show'); }
-$('delNo').onclick = () => { $('delOverlay').classList.remove('show'); delPg = null; };
-$('delYes').onclick = async () => {
-  const pg = delPg; delPg = null;
-  $('delOverlay').classList.remove('show');
+/* ---- 輸入名稱（資料夾命名用） ---- */
+let nameRes = null;
+function askName(icon, initial) {
+  return new Promise(res => {
+    nameRes = res; $('nameIcon').textContent = icon;
+    const i = $('nameIn'); i.value = initial || '';
+    $('nameOverlay').classList.add('show');
+    setTimeout(() => { i.focus(); i.select(); }, 60);
+  });
+}
+function endName(v) { $('nameOverlay').classList.remove('show'); const r = nameRes; nameRes = null; if (r) r(v); }
+$('nameNo').onclick = () => endName(null);
+$('nameYes').onclick = () => endName($('nameIn').value.trim());
+$('nameIn').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); $('nameYes').click(); } });
+
+/* ---- 長按後的選單：❌ 取消 ＋ 各種動作 ---- */
+function closeAct() { $('actOverlay').classList.remove('show'); }
+$('actOverlay').onclick = e => { if (e.target.id === 'actOverlay') closeAct(); };
+function showAction(prev, hint, btns) {
+  const pv = $('actPrev'); pv.innerHTML = ''; pv.appendChild(prev);
+  $('actHint').textContent = hint || '';
+  const row = $('actBtns'); row.innerHTML = '';
+  row.appendChild(mkBtn('❌', '取消', closeAct));
+  for (const b of btns) row.appendChild(mkBtn(b.icon, b.label, () => { closeAct(); b.fn(); }, b.cls));
+  $('actOverlay').classList.add('show');
+}
+function askPageAction(pg) {
+  const im = document.createElement('img'); im.src = pg.thumb || ''; im.alt = '';
+  showAction(im, '', [
+    { icon: '📁', label: '移動到資料夾', fn: () => askMove(pg) },
+    { icon: '🗑️', label: '刪除', cls: 'danger', fn: () => deletePage(pg) }
+  ]);
+}
+function askFolderAction(fd) {
+  const d = document.createElement('div'); d.innerHTML = '<div class="fico">📁</div><div class="fname"></div>';
+  d.lastChild.textContent = fd.name;
+  showAction(d, '刪除資料夾後，裡面的線稿會回到首頁', [
+    { icon: '✏️', label: '改名', fn: () => renameFolder(fd) },
+    { icon: '🗑️', label: '刪除資料夾', cls: 'danger', fn: () => deleteFolder(fd) }
+  ]);
+}
+
+/* ---- 資料夾：新增、改名、刪除、移動線稿 ---- */
+async function createFolder(name) {
+  const f = { name, created: Date.now() };
+  try { f.id = await DB.add('folders', { name, created: f.created }); }
+  catch (err) { console.warn(err); f.id = -Date.now(); cheer('⚠️'); }   // 存不進資料庫：這次先放在記憶體
+  folders.push(f);
+  return f;
+}
+async function renameFolder(fd) {
+  const n = await askName('📁', fd.name);
+  if (!n) return;
+  fd.name = n;
+  try { if (fd.id > 0) await DB.put('folders', { id: fd.id, name: fd.name, created: fd.created }); } catch (err) { console.warn(err); cheer('⚠️'); }
+  renderPages();
+}
+async function deleteFolder(fd) {
+  try {
+    for (const pg of pages) if (pg.folderId === fd.id) { pg.folderId = null; if (pg.id != null) await DB.put('pages', pageRec(pg)); }
+    if (fd.id > 0) await DB.del('folders', fd.id);
+  } catch (err) { console.warn(err); cheer('⚠️'); }
+  folders.splice(folders.indexOf(fd), 1);
+  if (curFolder === fd.id) curFolder = null;
+  renderPages();
+}
+function askMove(pg) {
+  const g = $('moveBox'); g.innerHTML = '';
+  const here = pg.folderId == null ? null : pg.folderId;
+  const mk = (icon, name, fn, on) => {
+    const b = document.createElement('button');
+    b.className = 'page folder' + (on ? ' on' : ''); folderCardInner(b, icon, name);
+    b.onclick = () => { $('moveOverlay').classList.remove('show'); fn(); };
+    g.appendChild(b);
+  };
+  mk('🏠', '首頁', () => moveTo(pg, null), here === null);
+  for (const f of folders) mk('📁', f.name, () => moveTo(pg, f.id), here === f.id);
+  mk('📁➕', '新資料夾', async () => {
+    const n = await askName('📁', '');
+    if (n === null) return;
+    const nf = await createFolder(n || '新資料夾');
+    moveTo(pg, nf.id);
+  });
+  $('moveOverlay').classList.add('show');
+}
+$('moveOverlay').onclick = e => { if (e.target.id === 'moveOverlay') e.currentTarget.classList.remove('show'); };
+async function moveTo(pg, fid) {
+  pg.folderId = fid;
+  if (pg.id != null) { try { await DB.put('pages', pageRec(pg)); } catch (err) { console.warn(err); cheer('⚠️'); } }
+  renderPages();
+}
+async function deletePage(pg) {
   const i = pages.indexOf(pg);
-  if (!pg || i < 0) return;
-  try { if (pg.id != null) await DB.del(pg.id); }
+  if (i < 0) return;
+  try { if (pg.id != null) await DB.del('pages', pg.id); }
   catch (err) { console.warn(err); cheer('⚠️'); return; }
   pages.splice(i, 1);
   if (i === curPage) await loadPage(0);                // 刪掉正在畫的那張 → 回到蘋果
   else if (i < curPage) curPage--;
-  renderPages();                                       // 留在首頁，可以繼續刪或選別張
-};
+  renderPages();                                       // 留在首頁，可以繼續整理
+}
 
 /* ===================== 8. 啟動 ===================== */
 setTool('crayon'); setColor(state.color); layout();
 setTimeout(async () => {
-  try {                                                // 讀回之前匯入並保存的線稿
-    const recs = await DB.all();
-    recs.sort((a, b) => a.created - b.created);
-    for (const r of recs) pages.push({ id: r.id, name: '匯入', blob: r.blob, thumb: r.thumb });
+  try {                                                // 讀回之前保存的資料夾和線稿
+    folders = (await DB.all('folders')).sort((a, b) => a.created - b.created);
+    const recs = (await DB.all('pages')).sort((a, b) => a.created - b.created);
+    for (const r of recs) pages.push({
+      id: r.id, name: '匯入', blob: r.blob, thumb: r.thumb, created: r.created,
+      folderId: folderOf(r.folderId) ? r.folderId : null     // 資料夾不見了就回到首頁
+    });
   } catch (err) { console.warn(err); }
   loadPage(0);
 }, 50);
