@@ -76,6 +76,12 @@ body.tablet #colorBtn{ display:none; }
 .page img{ width:100%; height:100%; display:block; object-fit:contain; }
 .page.on{ box-shadow:0 0 0 6px #ff9f1a; }
 .page.add{ background:#fff3c4; border:4px dashed #ffb300; }
+.page img{ pointer-events:none; }
+#delOverlay{ background:rgba(0,0,0,.5); z-index:30; }
+#delBox{ background:#fff; border-radius:24px; padding:18px; display:flex; flex-direction:column; align-items:center; gap:16px; }
+#delBox img{ width:min(50vmin,260px); height:min(50vmin,260px); object-fit:contain; border:2px solid #eee; border-radius:12px; }
+#delBtns{ display:flex; gap:32px; }
+#delYes{ background:#ffb3b3; }
 #cheer{ pointer-events:none; }
 #cheer .star{ font-size:40vmin; animation:pop 1.3s ease forwards; }
 @keyframes pop{ 0%{transform:scale(.2) rotate(-30deg);opacity:0} 40%{transform:scale(1.1) rotate(10deg);opacity:1} 100%{transform:scale(1);opacity:0} }
@@ -108,6 +114,7 @@ body.tablet #colorBtn{ display:none; }
 <div id="palOverlay" class="ov"><div id="palGrid"></div></div>
 <div id="brushOverlay" class="ov"><div id="brushGrid"></div></div>
 <div id="homeOverlay" class="ov"><div id="pages"></div></div>
+<div id="delOverlay" class="ov"><div id="delBox"><img id="delImg" alt=""><div id="delBtns"><button class="t" id="delNo" aria-label="取消">❌</button><button class="t" id="delYes" aria-label="刪除">🗑️</button></div></div></div>
 <input type="file" id="fileIn" accept="image/png,image/jpeg" hidden>
 <div id="cheer" class="ov"><div class="star">⭐</div></div>
 <div id="loading" class="ov show"><div class="spin">🎨</div></div>
@@ -684,23 +691,25 @@ let curPage = -1;
 
 function setLineWidth(px) { FILL_R = GAP + Math.max(1, Math.round(px * 0.6)); }
 
-// 載入第 i 頁：畫線稿 → 計算區域 → 清空顏料與復原
+// 載入第 i 頁：畫線稿 → 計算區域 → 清空顏料與復原（成功回傳 true）
 async function loadPage(i) {
   $('loading').classList.add('show');
   await new Promise(r => setTimeout(r, 30));          // 讓轉圈圈先顯示
   try {
     const pg = pages[i];
     if (pg.draw) { pg.draw(nctx); setLineWidth(LINE_PX); }
-    else setLineWidth(await drawImported(pg.file));
+    else setLineWidth(await drawImported(pg.blob));
     buildRegions();
     pctx.clearRect(0, 0, S, S); lctx.clearRect(0, 0, S, S);
     undoStack.length = 0; undoBytes = 0;
     pg.thumb = makeThumb();
     curPage = i;
+    return true;
   } catch (err) {
     console.warn(err);
-    if (!pages[i].draw) pages.splice(i, 1);           // 匯入失敗：移除這頁，保留原本的畫
+    if (!pages[i].draw) { pages.splice(i, 1); if (i < curPage) curPage--; }   // 讀不到的線稿從清單移除，保留原本的畫
     cheer('❌');
+    return false;
   } finally {
     $('loading').classList.remove('show');
   }
@@ -775,16 +784,16 @@ function makeThumb() {
   return t.toDataURL();
 }
 
-// 首頁：列出所有線稿＋「➕」匯入按鈕
+// 首頁：列出所有線稿＋「➕」匯入按鈕（長按匯入的線稿 0.7 秒可刪除）
 function renderPages() {
   const box = $('pages'); box.innerHTML = '';
   pages.forEach((pg, i) => {
     const b = document.createElement('button');
     b.className = 'page' + (i === curPage ? ' on' : '');
     b.setAttribute('aria-label', pg.name);
-    if (pg.thumb) { const im = document.createElement('img'); im.src = pg.thumb; im.alt = ''; b.appendChild(im); }
+    if (pg.thumb) { const im = document.createElement('img'); im.src = pg.thumb; im.alt = ''; im.draggable = false; b.appendChild(im); }
     else b.textContent = '🖼️';
-    b.onclick = () => { $('homeOverlay').classList.remove('show'); if (i !== curPage) loadPage(i); };
+    pressable(b, pg);
     box.appendChild(b);
   });
   const add = document.createElement('button');
@@ -792,18 +801,120 @@ function renderPages() {
   add.onclick = () => $('fileIn').click();
   box.appendChild(add);
 }
-$('fileIn').onchange = e => {
+// 短按＝開啟；長按（只限匯入的線稿）＝詢問是否刪除
+function pressable(b, pg) {
+  let t = null, fired = false, sx = 0, sy = 0;
+  const clear = () => { clearTimeout(t); t = null; };
+  b.addEventListener('pointerdown', e => {
+    fired = false; sx = e.clientX; sy = e.clientY; clear();
+    if (!pg.blob) return;                              // 內建的蘋果不能刪
+    t = setTimeout(() => { fired = true; askDelete(pg); }, 700);
+  });
+  b.addEventListener('pointermove', e => { if (t && Math.hypot(e.clientX - sx, e.clientY - sy) > 12) clear(); });
+  for (const n of ['pointerup', 'pointercancel', 'pointerleave']) b.addEventListener(n, clear);
+  b.onclick = () => {
+    if (fired) { fired = false; return; }
+    $('homeOverlay').classList.remove('show');
+    const i = pages.indexOf(pg);
+    if (i >= 0 && i !== curPage) loadPage(i);
+  };
+}
+
+/* ===================== 10. 匯入線稿的保存與刪除（存在這台裝置的瀏覽器裡，不會上傳） ===================== */
+// IndexedDB 小工具：資料庫 coloring-book，裡面一個 pages 倉庫
+const DB = (() => {
+  let dbp = null;
+  function open() {
+    if (!dbp) dbp = new Promise((res, rej) => {
+      try {
+        const r = indexedDB.open('coloring-book', 1);
+        r.onupgradeneeded = () => r.result.createObjectStore('pages', { keyPath: 'id', autoIncrement: true });
+        r.onsuccess = () => res(r.result);
+        r.onerror = () => rej(r.error || new Error('db open'));
+        r.onblocked = () => rej(new Error('db blocked'));
+      } catch (e) { rej(e); }
+    }).catch(e => { dbp = null; throw e; });
+    return dbp;
+  }
+  const run = (mode, fn) => open().then(db => new Promise((res, rej) => {
+    const tx = db.transaction('pages', mode);
+    const rq = fn(tx.objectStore('pages'));
+    tx.oncomplete = () => res(rq.result);
+    tx.onerror = tx.onabort = () => rej(tx.error || new Error('db tx'));
+  }));
+  return {
+    all: () => run('readonly', s => s.getAll()),
+    add: rec => run('readwrite', s => s.add(rec)),
+    del: id => run('readwrite', s => s.delete(id))
+  };
+})();
+
+// 匯入前先縮到最長邊 2048、墊白底，存成小檔（原檔之後刪掉也沒關係）
+async function normalizeFile(file) {
+  const img = await loadImg(file);
+  const iw = img.naturalWidth, ih = img.naturalHeight;
+  if (!iw || !ih) throw new Error('空白圖片');
+  const k = Math.min(1, 2048 / Math.max(iw, ih));
+  const c = document.createElement('canvas');
+  c.width = Math.max(1, Math.round(iw * k)); c.height = Math.max(1, Math.round(ih * k));
+  const x = c.getContext('2d');
+  x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height);
+  x.imageSmoothingQuality = 'high'; x.drawImage(img, 0, 0, c.width, c.height);
+  let blob = await new Promise(r => c.toBlob(r, 'image/png'));
+  if (blob && blob.size > 2.5e6) blob = await new Promise(r => c.toBlob(r, 'image/jpeg', 0.9));
+  if (!blob) throw new Error('無法轉換圖片');
+  return blob;
+}
+
+// 保存到資料庫；失敗（無痕模式、空間不足）時只提示 ⚠️，這次仍可正常使用
+async function saveNew(pg) {
+  try {
+    pg.id = await DB.add({ blob: pg.blob, thumb: pg.thumb, created: Date.now() });
+    if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});   // 請瀏覽器別自動清掉
+  } catch (err) { console.warn(err); cheer('⚠️'); }
+}
+
+$('fileIn').onchange = async e => {
   const f = e.target.files && e.target.files[0];
   e.target.value = '';                                 // 讓同一張圖可以再選一次
   if (!f) return;
   $('homeOverlay').classList.remove('show');
-  pages.push({ name: '匯入', file: f });
-  loadPage(pages.length - 1);
+  $('loading').classList.add('show');
+  let blob;
+  try { blob = await normalizeFile(f); }
+  catch (err) { console.warn(err); $('loading').classList.remove('show'); cheer('❌'); return; }
+  const pg = { name: '匯入', blob };
+  pages.push(pg);
+  if (await loadPage(pages.length - 1)) saveNew(pg);
+};
+
+// 刪除：長按後跳出確認（❌ 取消 / 🗑️ 刪除）
+let delPg = null;
+function askDelete(pg) { delPg = pg; $('delImg').src = pg.thumb || ''; $('delOverlay').classList.add('show'); }
+$('delNo').onclick = () => { $('delOverlay').classList.remove('show'); delPg = null; };
+$('delYes').onclick = async () => {
+  const pg = delPg; delPg = null;
+  $('delOverlay').classList.remove('show');
+  const i = pages.indexOf(pg);
+  if (!pg || i < 0) return;
+  try { if (pg.id != null) await DB.del(pg.id); }
+  catch (err) { console.warn(err); cheer('⚠️'); return; }
+  pages.splice(i, 1);
+  if (i === curPage) await loadPage(0);                // 刪掉正在畫的那張 → 回到蘋果
+  else if (i < curPage) curPage--;
+  renderPages();                                       // 留在首頁，可以繼續刪或選別張
 };
 
 /* ===================== 8. 啟動 ===================== */
 setTool('crayon'); setColor(state.color); layout();
-setTimeout(() => loadPage(0), 50);
+setTimeout(async () => {
+  try {                                                // 讀回之前匯入並保存的線稿
+    const recs = await DB.all();
+    recs.sort((a, b) => a.created - b.created);
+    for (const r of recs) pages.push({ id: r.id, name: '匯入', blob: r.blob, thumb: r.thumb });
+  } catch (err) { console.warn(err); }
+  loadPage(0);
+}, 50);
 if ('serviceWorker' in navigator && window.isSecureContext && location.protocol !== 'file:') {
   navigator.serviceWorker.register('sw.js').catch(() => {});
 }
