@@ -1,6 +1,6 @@
 {
-  "name": "著色本",
-  "short_name": "著色本",
+  "name": "揚名ColorPad",
+  "short_name": "揚名ColorPad",
   "start_url": "./",
   "scope": "./",
   "display": "fullscreen",

@@ -3,13 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
-<title>著色本</title>
+<title>揚名ColorPad</title>
 <!-- PWA：這三行需要同資料夾的 manifest.webmanifest、icon-192.png；單獨開啟 HTML 時會被忽略，不影響使用 -->
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="theme-color" content="#ffe9b8">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="揚名ColorPad">
 <style>
 /* ===================== 介面樣式 ===================== */
 :root{ --btn:64px; --gap:6px; --bg:#fff7e6; --bar:#ffe9b8; }
@@ -73,9 +74,24 @@ body.tablet #colorBtn{ display:none; }
 #homeHead{ display:none; align-items:center; gap:14px; background:#fff; border-radius:20px; padding:8px 18px 8px 8px; }
 #homeHead.show{ display:flex; }
 #homeHead .title{ font-size:28px; font-weight:700; max-width:60vw; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-#pages{ display:flex; flex-wrap:wrap; gap:16px; justify-content:center; align-content:center;
+#brand{ display:flex; align-items:center; gap:12px; background:#fff; border-radius:20px; padding:6px 20px 6px 10px; }
+#brand img{ height:min(17vmin,88px); width:auto; display:block; }
+#brand .bn{ display:flex; flex-direction:column; line-height:1.25; }
+#brand .bn b{ font-size:22px; color:#3f4670; }
+#brand .bn span{ font-size:15px; color:#6a708f; }
+#homeFoot{ display:flex; flex-direction:column; align-items:center; gap:6px; color:#fff; font-size:14px; text-shadow:0 1px 3px rgba(0,0,0,.6); }
+#homeFoot .links{ display:flex; gap:14px; align-items:center; }
+.lk{ position:relative; width:48px; height:48px; border-radius:50%; border:none; padding:0; color:#fff; font-weight:800; font-size:20px;
+  cursor:pointer; touch-action:manipulation; display:flex; align-items:center; justify-content:center; overflow:hidden; }
+.lk.fb{ background:#1877f2; } .lk.ig{ background:linear-gradient(45deg,#fd5949,#d6249f 55%,#285aeb); }
+.lk i{ position:absolute; left:0; bottom:0; height:100%; width:100%; background:rgba(255,255,255,.45); transform:scaleY(0); transform-origin:bottom; pointer-events:none; }
+.lk.hold i{ transform:scaleY(1); transition:transform 1.5s linear; }
+#hint{ position:fixed; left:50%; bottom:8vh; transform:translateX(-50%); background:rgba(0,0,0,.75); color:#fff; padding:10px 18px; border-radius:20px;
+  font-size:18px; z-index:60; display:none; max-width:90vw; text-align:center; }
+#hint.show{ display:block; }
+#pages{ display:flex; flex-wrap:wrap; gap:16px; justify-content:center; align-content:flex-start;
   overflow:auto; padding:12px; min-height:0; }
-.page{ width:min(40vmin,240px); aspect-ratio:1; border:none; border-radius:24px; background:#fff;
+.page{ width:min(32vmin,210px); aspect-ratio:1; border:none; border-radius:24px; background:#fff;
   padding:10px; box-shadow:0 6px 0 rgba(0,0,0,.2); cursor:pointer; font-size:min(16vmin,96px); }
 .page img{ width:100%; height:100%; display:block; object-fit:contain; }
 .page.on{ box-shadow:0 0 0 6px #ff9f1a; }
@@ -116,7 +132,10 @@ button.t.danger{ background:#ffb3b3; }
 #cheer .star{ font-size:40vmin; animation:pop 1.3s ease forwards; }
 @keyframes pop{ 0%{transform:scale(.2) rotate(-30deg);opacity:0} 40%{transform:scale(1.1) rotate(10deg);opacity:1} 100%{transform:scale(1);opacity:0} }
 #loading{ background:var(--bg); z-index:50; }
-#loading .spin{ font-size:80px; animation:sp 1s linear infinite; }
+#loading{ flex-direction:column; gap:18px; }
+#loading img{ width:min(60vw,260px); }
+#loading .nm{ font-size:22px; color:#3f4670; font-weight:700; }
+#loading .spin{ font-size:56px; animation:sp 1s linear infinite; }
 @keyframes sp{ to{ transform:rotate(360deg); } }
 </style>
 </head>
@@ -143,14 +162,16 @@ button.t.danger{ background:#ffb3b3; }
 </div>
 <div id="palOverlay" class="ov"><div id="palGrid"></div></div>
 <div id="brushOverlay" class="ov"><div id="brushGrid"></div></div>
-<div id="homeOverlay" class="ov"><div id="homeBox"><div id="homeHead"></div><div id="pages"></div></div></div>
+<div id="homeOverlay" class="ov"><div id="homeBox"><div id="brand"><img src="logo.png" alt="揚名創思空間"><div class="bn"><b>揚名 ColorPad</b><span>揚名創思空間</span></div></div><div id="homeHead"></div><div id="pages"></div>
+<div id="homeFoot"><div class="links"><button class="lk fb" id="lkFb" aria-label="Facebook 粉絲專頁（長按開啟）">f<i></i></button><button class="lk ig" id="lkIg" aria-label="Instagram（長按開啟）">IG<i></i></button></div><div>© 2026 揚名創思空間 All rights reserved</div><div style="font-size:12px;opacity:.85">連結請爸爸媽媽長按約 1.5 秒開啟</div></div></div></div>
+<div id="hint"></div>
 <div id="actOverlay" class="ov"><div id="actBox"><div id="actPrev"></div><div id="actHint"></div><div id="actBtns"></div></div></div>
 <div id="moveOverlay" class="ov"><div id="moveBox"></div></div>
 <div id="nameOverlay" class="ov"><div id="nameBox"><div id="nameIcon">📁</div><input id="nameIn" maxlength="20" placeholder="名稱" autocomplete="off"><div id="nameBtns"><button class="t" id="nameNo" aria-label="取消">❌</button><button class="t" id="nameYes" aria-label="確定">✅</button></div></div></div>
 <div id="pickOverlay" class="ov"><div id="pickBox"><canvas id="pkSV"></canvas><canvas id="pkHue"></canvas><div id="pkRow"><div id="pkPrev"></div><button class="t" id="pkNo" aria-label="取消">❌</button><button class="t" id="pkDel" aria-label="刪除顏色">🗑️</button><button class="t" id="pkYes" aria-label="確定">✅</button></div></div></div>
 <input type="file" id="fileIn" accept="image/png,image/jpeg" hidden>
 <div id="cheer" class="ov"><div class="star">⭐</div></div>
-<div id="loading" class="ov show"><div class="spin">🎨</div></div>
+<div id="loading" class="ov show"><img src="logo.png" alt=""><div class="nm">揚名 ColorPad</div><div class="spin">🎨</div></div>
 
 <script>
 'use strict';
@@ -703,16 +724,34 @@ function renderCustom() {
   for (const s of swatches) s.classList.toggle('on', s.dataset.c === state.color);
 }
 // 短按／長按（0.7 秒）共用：長按時不會再觸發短按
-function press(el, onTap, onLong) {
+function press(el, onTap, onLong, ms = 700) {
   let t = null, fired = false, sx = 0, sy = 0;
   const clear = () => { clearTimeout(t); t = null; };
   el.addEventListener('pointerdown', e => {
     fired = false; sx = e.clientX; sy = e.clientY; clear();
-    if (onLong) t = setTimeout(() => { fired = true; onLong(); }, 700);
+    if (onLong) t = setTimeout(() => { fired = true; onLong(); }, ms);
   });
   el.addEventListener('pointermove', e => { if (t && Math.hypot(e.clientX - sx, e.clientY - sy) > 12) clear(); });
   for (const n of ['pointerup', 'pointercancel', 'pointerleave']) el.addEventListener(n, clear);
   el.onclick = () => { if (fired) { fired = false; return; } onTap(); };
+}
+// 外部連結：長按 1.5 秒才開啟，避免小孩誤觸
+const LINKS = { lkFb: 'https://www.facebook.com/share/14xKGWePR8U/', lkIg: 'https://www.instagram.com/ymca11235/' };
+let hintT = null;
+function showHint(msg) {
+  const h = $('hint'); h.textContent = msg; h.classList.add('show');
+  clearTimeout(hintT); hintT = setTimeout(() => h.classList.remove('show'), 2200);
+}
+for (const id of Object.keys(LINKS)) {
+  const b = $(id), un = () => b.classList.remove('hold');
+  b.addEventListener('pointerdown', () => { un(); void b.offsetWidth; b.classList.add('hold'); });
+  for (const n of ['pointerup', 'pointercancel', 'pointerleave']) b.addEventListener(n, un);
+  b.addEventListener('contextmenu', e => e.preventDefault());
+  press(b, () => showHint('請爸爸媽媽長按約 1.5 秒開啟連結'), () => {
+    un();
+    if (!navigator.onLine) { showHint('目前沒有網路，連上網路後再試'); return; }
+    window.open(LINKS[id], '_blank', 'noopener');
+  }, 1500);
 }
 const pk = { h: 0, s: 1, v: 1, edit: -1 };
 const clamp01 = v => Math.max(0, Math.min(1, v));
