@@ -70,7 +70,7 @@ body.tablet #colorBtn{ display:none; }
 /* 各種覆蓋層 */
 .ov{ position:fixed; inset:0; display:none; align-items:center; justify-content:center; z-index:20; }
 .ov.show{ display:flex; }
-#palOverlay,#brushOverlay,#stampOverlay,#shapeOverlay,#musicOverlay,#homeOverlay{ background:rgba(0,0,0,.4); }
+#palOverlay,#brushOverlay,#stampOverlay,#shapeOverlay,#musicOverlay,#sizeOverlay,#homeOverlay{ background:rgba(0,0,0,.4); }
 #palGrid,#brushGrid,#stampGrid,#shapeGrid,#musicGrid{ background:#fff; border-radius:20px; padding:14px; display:grid; gap:8px;
   grid-template-columns:repeat(auto-fill,var(--btn)); justify-content:center;
   width:min(92vw,560px); max-height:85vh; overflow:auto; }
@@ -185,6 +185,10 @@ body.tablet #barA{ justify-content:center; gap:22px; }
 #shapeGrid button,#musicGrid button{ width:84px; height:88px; border:none; border-radius:16px; background:#f4f8ff; box-shadow:0 3px 0 rgba(0,0,0,.15); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; padding:0; cursor:pointer; touch-action:manipulation; font-size:12px; color:#444; font-weight:700; }
 @media (orientation:portrait){ body:not(.tablet).has-shape #barB button.t{ width:52px; min-width:52px; height:52px; min-height:52px; font-size:28px; } }
 @media (orientation:portrait){ body:not(.tablet) #barA{ gap:4px; } body:not(.tablet) #barA button.t{ width:52px; min-width:52px; height:52px; min-height:52px; font-size:28px; border-radius:15px; } }
+#sizeGrid{ background:#fff; border-radius:24px; padding:14px 16px; display:flex; gap:10px; align-items:center; max-width:94vw; }
+#sizeGrid button{ width:64px; height:64px; border:none; border-radius:16px; background:#f4f8ff; box-shadow:0 3px 0 rgba(0,0,0,.15); display:flex; align-items:center; justify-content:center; padding:0; cursor:pointer; touch-action:manipulation; flex:0 0 auto; }
+#sizeGrid button.on{ outline:4px solid #ff9f1c; background:#fff3d6; }
+@media (max-width:420px){ #sizeGrid{ gap:6px; padding:12px 10px; } #sizeGrid button{ width:56px; height:56px; } }
 </style>
 </head>
 <body>
@@ -217,6 +221,7 @@ body.tablet #barA{ justify-content:center; gap:22px; }
 <div id="stampOverlay" class="ov"><div id="stampGrid"></div></div>
 <div id="shapeOverlay" class="ov"><div id="shapeGrid"></div></div>
 <div id="musicOverlay" class="ov"><div id="musicGrid"></div></div>
+<div id="sizeOverlay" class="ov"><div id="sizeGrid"></div></div>
 <div id="homeOverlay" class="ov"><div id="homeBox"><div id="brand"><img src="logo.png" alt="揚名創思空間"><div class="bn"><b>揚名 ColorPad</b><span>揚名創思空間</span></div></div><button id="updBtn">🔄 有新版本！請爸爸媽媽長按 1.5 秒更新<i></i></button><div id="homeHead"></div><div id="pages"></div>
 <div id="homeFoot"><div class="links"><button class="lk fb" id="lkFb" aria-label="Facebook 粉絲專頁（長按開啟）">f<i></i></button><button class="lk ig" id="lkIg" aria-label="Instagram（長按開啟）">IG<i></i></button><button class="lk snd" id="lkSnd" aria-label="音效開關">🔊</button></div><div>© 2026 揚名創思空間 All rights reserved</div><div style="font-size:12px;opacity:.85">連結請爸爸媽媽長按約 1.5 秒開啟</div></div></div></div>
 <div id="hint"></div>
@@ -329,8 +334,8 @@ const S = Math.max(1024, Math.min(2048, Math.round(Math.min(screen.width, screen
 const GAP = Math.max(2, Math.round(S / 400));   // 線條加粗幾像素來補小缺口
 const LINE_PX = Math.round(S * 0.014);                  // 線稿的線寬（和 drawApple 的 lineWidth 一致）
 let FILL_R = GAP + Math.round(LINE_PX * 0.6);           // 顏色往黑線底下延伸的距離（每張線稿依線寬重算）
-const SIZES = [0.015, 0.035, 0.07];             // 三段粗細（相對畫布寬）
-const DOT_PX = [12, 22, 34];                     // 粗細按鈕上圓點大小
+const SIZES = [0.007, 0.015, 0.035, 0.07, 0.11];   // 五段粗細（相對畫布寬）：由細到粗
+const DOT_PX = [5, 10, 18, 28, 40];                     // 粗細按鈕上圓點大小
 
 const paint = $('paint'), live = $('live'), line = $('line'), objc = $('objc'), wrap = $('wrap'), stage = $('stage');
 for (const c of [paint, live, line, objc]) { c.width = S; c.height = S; }
@@ -342,7 +347,7 @@ const stroke = document.createElement('canvas');   // 暫存一筆的筆觸（�
 stroke.width = stroke.height = 16;
 let sctx = stroke.getContext('2d');
 
-const state = { tool: 'crayon', lastBrush: 'crayon', color: null, sizeIdx: 1 };
+const state = { tool: 'crayon', lastBrush: 'crayon', color: null, sizeIdx: 2 };
 
 /* ===================== 2. 48 色 ===================== */
 const COLORS = (() => {
@@ -1101,7 +1106,7 @@ function stampAt(p) {
 }
 function stampOne(q, ang, flipX, g) {
   const id = regionAt(q.x, q.y); if (!id) return false;
-  const m = getMask(id), R = S * [0.05, 0.085, 0.14][state.sizeIdx], E = R * 1.5;
+  const m = getMask(id), R = S * [0.03, 0.05, 0.085, 0.14, 0.19][state.sizeIdx], E = R * 1.5;
   const x0 = Math.max(m.x, Math.floor(q.x - E)), y0 = Math.max(m.y, Math.floor(q.y - E));
   const x1 = Math.min(m.x + m.w, Math.ceil(q.x + E)), y1 = Math.min(m.y + m.h, Math.ceil(q.y + E));
   if (x1 <= x0 || y1 <= y0) return false;
@@ -1404,7 +1409,18 @@ function updateDots() {
   d.style.background = state.tool === 'eraser' ? '#999' : state.color;
   $('colorDot').style.background = state.color;
 }
-$('sizeBtn').onclick = () => { state.sizeIdx = (state.sizeIdx + 1) % 3; updateDots(); };
+(() => {                                                // 點粗細鈕 → 跳出 5 種粗細，由細到粗
+  const g = $('sizeGrid');
+  DOT_PX.forEach((px, i) => {
+    const b = document.createElement('button'), d = document.createElement('span');
+    d.style.cssText = 'display:block;border-radius:50%;background:#444;width:' + px + 'px;height:' + px + 'px';
+    b.dataset.i = i; b.setAttribute('aria-label', '粗細 ' + (i + 1)); b.appendChild(d);
+    b.onclick = () => { state.sizeIdx = i; updateDots(); $('sizeOverlay').classList.remove('show'); };
+    g.appendChild(b);
+  });
+  $('sizeBtn').onclick = () => { for (const b of g.children) b.classList.toggle('on', +b.dataset.i === state.sizeIdx); $('sizeOverlay').classList.add('show'); };
+  $('sizeOverlay').onclick = e => { if (e.target.id === 'sizeOverlay') e.currentTarget.classList.remove('show'); };
+})();
 $('undoBtn').onclick = () => { if (state.tool === 'shape' && objHist.length) restoreHist(); else undo(); };
 $('clearBtn').onclick = () => { flattenObjects(); pushUndo(0, 0, S, S); pctx.clearRect(0, 0, S, S); markDirty(); };  // 清除也能復原
 colorBtn.onclick = () => $('palOverlay').classList.add('show');
