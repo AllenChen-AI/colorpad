@@ -70,8 +70,8 @@ body.tablet #colorBtn{ display:none; }
 /* 各種覆蓋層 */
 .ov{ position:fixed; inset:0; display:none; align-items:center; justify-content:center; z-index:20; }
 .ov.show{ display:flex; }
-#palOverlay,#brushOverlay,#stampOverlay,#shapeOverlay,#homeOverlay{ background:rgba(0,0,0,.4); }
-#palGrid,#brushGrid,#stampGrid,#shapeGrid{ background:#fff; border-radius:20px; padding:14px; display:grid; gap:8px;
+#palOverlay,#brushOverlay,#stampOverlay,#shapeOverlay,#musicOverlay,#homeOverlay{ background:rgba(0,0,0,.4); }
+#palGrid,#brushGrid,#stampGrid,#shapeGrid,#musicGrid{ background:#fff; border-radius:20px; padding:14px; display:grid; gap:8px;
   grid-template-columns:repeat(auto-fill,var(--btn)); justify-content:center;
   width:min(92vw,560px); max-height:85vh; overflow:auto; }
 #homeBox{ display:flex; flex-direction:column; align-items:center; gap:12px; max-width:94vw; max-height:92vh; }
@@ -178,9 +178,13 @@ body.tablet #barA{ justify-content:center; gap:22px; }
 #objBar{ position:absolute; top:6px; left:50%; transform:translateX(-50%); display:none; gap:8px; z-index:5; background:rgba(255,255,255,.85); padding:6px; border-radius:20px; box-shadow:0 2px 8px rgba(0,0,0,.2); }
 #objBar.show{ display:flex; }
 #objBar button.t{ width:52px; height:52px; min-width:52px; min-height:52px; font-size:26px; border-radius:14px; }
-#shapeGrid{ grid-template-columns:repeat(auto-fill,84px) !important; }
-#shapeGrid button{ width:84px; height:88px; border:none; border-radius:16px; background:#f4f8ff; box-shadow:0 3px 0 rgba(0,0,0,.15); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; padding:0; cursor:pointer; touch-action:manipulation; font-size:12px; color:#444; font-weight:700; }
+#shapeGrid,#musicGrid{ grid-template-columns:repeat(auto-fill,84px) !important; }
+#musicGrid button.on{ outline:4px solid #ff9f1c; }
+#musicGrid .sep{ grid-column:1/-1; height:0; }
+#musicBtn.on{ background:#ffe08a; outline:3px solid #ff9f1c; }
+#shapeGrid button,#musicGrid button{ width:84px; height:88px; border:none; border-radius:16px; background:#f4f8ff; box-shadow:0 3px 0 rgba(0,0,0,.15); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; padding:0; cursor:pointer; touch-action:manipulation; font-size:12px; color:#444; font-weight:700; }
 @media (orientation:portrait){ body:not(.tablet).has-shape #barB button.t{ width:52px; min-width:52px; height:52px; min-height:52px; font-size:28px; } }
+@media (orientation:portrait){ body:not(.tablet) #barA{ gap:4px; } body:not(.tablet) #barA button.t{ width:52px; min-width:52px; height:52px; min-height:52px; font-size:28px; border-radius:15px; } }
 </style>
 </head>
 <body>
@@ -189,6 +193,7 @@ body.tablet #barA{ justify-content:center; gap:22px; }
     <button class="t" id="homeBtn" aria-label="首頁">🏠</button>
     <button class="t" id="undoBtn" aria-label="復原">↩️</button>
     <button class="t" id="clearBtn" aria-label="清除">🗑️</button>
+    <button class="t" id="musicBtn" aria-label="背景音樂">🎵</button>
     <button class="t" id="sizeBtn" aria-label="粗細"><span id="sizeDot"></span></button>
     <button class="t" id="doneBtn" aria-label="完成">✅</button>
   </div>
@@ -211,6 +216,7 @@ body.tablet #barA{ justify-content:center; gap:22px; }
 <div id="brushOverlay" class="ov"><div id="brushGrid"></div></div>
 <div id="stampOverlay" class="ov"><div id="stampGrid"></div></div>
 <div id="shapeOverlay" class="ov"><div id="shapeGrid"></div></div>
+<div id="musicOverlay" class="ov"><div id="musicGrid"></div></div>
 <div id="homeOverlay" class="ov"><div id="homeBox"><div id="brand"><img src="logo.png" alt="揚名創思空間"><div class="bn"><b>揚名 ColorPad</b><span>揚名創思空間</span></div></div><button id="updBtn">🔄 有新版本！請爸爸媽媽長按 1.5 秒更新<i></i></button><div id="homeHead"></div><div id="pages"></div>
 <div id="homeFoot"><div class="links"><button class="lk fb" id="lkFb" aria-label="Facebook 粉絲專頁（長按開啟）">f<i></i></button><button class="lk ig" id="lkIg" aria-label="Instagram（長按開啟）">IG<i></i></button><button class="lk snd" id="lkSnd" aria-label="音效開關">🔊</button></div><div>© 2026 揚名創思空間 All rights reserved</div><div style="font-size:12px;opacity:.85">連結請爸爸媽媽長按約 1.5 秒開啟</div></div></div></div>
 <div id="hint"></div>
@@ -844,6 +850,77 @@ wrap.addEventListener('pointercancel', endStroke);
 wrap.addEventListener('lostpointercapture', endStroke);
 
 
+
+
+/* ===================== 背景音樂：用程式即時合成的原創小曲（不需要音檔、可離線）。點 🎵 開／關，長按換曲目與音量 ===================== */
+const MUS = (() => {
+  const N = { c: 0, d: 2, e: 4, f: 5, g: 7, a: 9, b: 11 }, hz = m => 440 * Math.pow(2, (m - 69) / 12);
+  const nn = t => t === '-' ? null : 12 * (+t[t.length - 1] + 1) + N[t[0]];
+  const MEL = ('e5 - g5 - a5 g5 e5 - | d5 - e5 g5 e5 - - - | c5 - e5 - a5 - g5 e5 | d5 - g5 - e5 - - - | ' +
+    'g5 - a5 g5 e5 - g5 - | a5 - g5 e5 d5 - e5 - | c5 - d5 e5 g5 e5 d5 c5 | d5 - - - c5 - - -').split('|').map(b => b.trim().split(/\s+/).map(nn));
+  const CH = [[48, 52, 55], [45, 48, 52], [41, 45, 48], [43, 47, 50]];            // C Am F G
+  const ARP = [0, 1, 2, 1, 0, 1, 2, 1];
+  const T = [
+    { id: 'box', name: '音樂盒', icon: '🎁', bpm: 84, mel: { w: 'sine', d: 1.3, v: 0.16, h: 0.5 }, acc: (c, i) => (i % 2 === 0 ? { m: c[ARP[i]] + 12, d: 0.9, v: 0.05, w: 'sine' } : null) },
+    { id: 'piano', name: '鋼琴', icon: '🎹', bpm: 66, mel: { w: 'triangle', d: 1.7, v: 0.17, h: 0 }, acc: (c, i) => (i === 0 ? { m: c, d: 3, v: 0.06, w: 'triangle' } : i === 4 ? { m: c.slice(1), d: 1.8, v: 0.04, w: 'triangle' } : null) },
+    { id: 'uke', name: '烏克麗麗', icon: '🪕', bpm: 100, mel: { w: 'triangle', d: 0.45, v: 0.18, h: 0 }, acc: (c, i) => (i % 2 === 0 ? { m: c.map(x => x + 12), d: 0.3, v: 0.045, w: 'triangle', s: 0.012 } : null) },
+    { id: 'xylo', name: '木琴', icon: '🥁', bpm: 112, mel: { w: 'sine', d: 0.3, v: 0.2, h: 0.35, hm: 4 }, acc: (c, i) => (i % 4 === 0 ? { m: c[0] - 12 + (i === 4 ? 7 : 0), d: 0.4, v: 0.1, w: 'sine' } : null) }
+  ];
+  let ac = null, master = null, timer = null, step = 0, next = 0, cur = null, vol = 0.6;
+  let on = false;
+  try { vol = +(localStorage.getItem('coloring-mvol') || 0.6); cur = localStorage.getItem('coloring-mtrack'); } catch (_) {}
+  if (!T.find(t => t.id === cur)) cur = 'box';
+  const ctx = () => { ac = ac || new (window.AudioContext || window.webkitAudioContext)(); if (ac.state === 'suspended') ac.resume(); return ac; };
+  function note(m, t, o) {
+    const a = ctx(), f = hz(m), g = a.createGain(), dur = o.d;
+    g.gain.setValueAtTime(0.0001, t + (o.s || 0)); g.gain.linearRampToValueAtTime(o.v, t + (o.s || 0) + 0.015); g.gain.exponentialRampToValueAtTime(0.0001, t + (o.s || 0) + dur);
+    g.connect(master);
+    const mk = (fr, vv, w) => { const os = a.createOscillator(), gg = a.createGain(); os.type = w; os.frequency.value = fr; gg.gain.value = vv; os.connect(gg); gg.connect(g); os.start(t + (o.s || 0)); os.stop(t + (o.s || 0) + dur + 0.05); };
+    mk(f, 1, o.w); if (o.h) mk(f * (o.hm || 2), o.h, 'sine');
+  }
+  function tick() {
+    const tr = T.find(t => t.id === cur), sd = 60 / tr.bpm / 2;
+    while (next < ac.currentTime + 0.5) {
+      const bar = Math.floor(step / 8) % 8, i = step % 8, ch = CH[bar % 4];
+      const m = MEL[bar][i]; if (m != null) note(m, next, { ...tr.mel, d: tr.mel.d });
+      const a = tr.acc(ch, i); if (a) for (const mm of [].concat(a.m)) note(mm, next, a);
+      next += sd; step = (step + 1) % 64;
+    }
+  }
+  function start() {
+    ctx(); stop(true); master = ac.createGain(); master.gain.value = 0.0001; master.gain.linearRampToValueAtTime(vol, ac.currentTime + 0.4); master.connect(ac.destination);
+    step = 0; next = ac.currentTime + 0.1; on = true; tick(); timer = setInterval(tick, 120);
+  }
+  function stop(quick) {
+    clearInterval(timer); timer = null; on = false;
+    if (master) { const m = master; master = null; try { m.gain.cancelScheduledValues(ac.currentTime); m.gain.setValueAtTime(m.gain.value, ac.currentTime); m.gain.linearRampToValueAtTime(0.0001, ac.currentTime + (quick ? 0.05 : 0.4)); setTimeout(() => { try { m.disconnect(); } catch (_) {} }, 700); } catch (_) {} }
+  }
+  document.addEventListener('visibilitychange', () => { if (document.hidden && on) { MUS.wasOn = true; stop(true); setUI(); } else if (!document.hidden && MUS.wasOn) { MUS.wasOn = false; start(); setUI(); } });
+  const save = () => { try { localStorage.setItem('coloring-mvol', vol); localStorage.setItem('coloring-mtrack', cur); } catch (_) {} };
+  return {
+    T, get on() { return on; }, get cur() { return cur; }, get vol() { return vol; },
+    toggle() { on ? stop() : start(); },
+    play(id) { cur = id; save(); start(); },
+    off() { stop(); },
+    setVol(v) { vol = v; save(); if (master) master.gain.linearRampToValueAtTime(v, ac.currentTime + 0.1); }
+  };
+})();
+function setUI() {
+  $('musicBtn').classList.toggle('on', MUS.on);
+  $('musicBtn').textContent = MUS.on ? '🎶' : '🎵';
+  for (const b of $('musicGrid').querySelectorAll('button')) b.classList.toggle('on', (b.dataset.t && MUS.on && b.dataset.t === MUS.cur) || (b.dataset.v && +b.dataset.v === MUS.vol) || (b.dataset.t === 'off' && !MUS.on));
+}
+(() => {
+  const g = $('musicGrid');
+  const mk = (icon, label, data, fn) => { const b = document.createElement('button'); b.innerHTML = '<span style="font-size:34px;line-height:1">' + icon + '</span><span>' + label + '</span>'; Object.assign(b.dataset, data); b.onclick = fn; g.appendChild(b); };
+  for (const t of MUS.T) mk(t.icon, t.name, { t: t.id }, () => { MUS.play(t.id); setUI(); });
+  mk('🔇', '關閉', { t: 'off' }, () => { MUS.off(); setUI(); });
+  g.appendChild(Object.assign(document.createElement('div'), { className: 'sep' }));
+  for (const [ic, v, lb] of [['🔈', 0.3, '小聲'], ['🔉', 0.6, '中等'], ['🔊', 1, '大聲']]) mk(ic, lb, { v }, () => { MUS.setVol(v); setUI(); });
+  $('musicOverlay').onclick = e => { if (e.target.id === 'musicOverlay') e.currentTarget.classList.remove('show'); };
+  press($('musicBtn'), () => { MUS.toggle(); setUI(); if (MUS.on) showHint('🎵 ' + MUS.T.find(t => t.id === MUS.cur).name + '（長按可換音樂、調音量）'); }, () => { setUI(); $('musicOverlay').classList.add('show'); });
+  $('musicBtn').addEventListener('contextmenu', e => e.preventDefault());
+})();
 
 /* ===================== 幾何形狀物件（空白畫布專用）：放上去、拖曳移動、拉角縮放、轉圈旋轉；換工具時固定到畫布上 ===================== */
 const SHAPE_LIST = (() => {
