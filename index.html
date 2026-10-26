@@ -447,6 +447,21 @@ function buildRegions() {
     }
     regionArea.push(area); regionBox.push({ x0, y0, x1, y1 });
   }
+  // 被「補缺口」吃掉的細縫（不是真的線，只是太窄的白色區塊）：就近併入旁邊的區域，這樣也塗得到
+  {
+    const q = stack; let qh = 0, qt = 0;
+    for (let i = 0; i < S * S; i++) if (labels[i]) q[qt++] = i;
+    while (qh < qt) {
+      const j = q[qh++], id = labels[j], x = j % S, y = (j / S) | 0;
+      for (let t = 0; t < 4; t++) {
+        const k = t === 0 ? (x > 0 ? j - 1 : -1) : t === 1 ? (x < S - 1 ? j + 1 : -1) : t === 2 ? (y > 0 ? j - S : -1) : (y < S - 1 ? j + S : -1);
+        if (k < 0 || labels[k] || w0[k]) continue;
+        labels[k] = id; q[qt++] = k; regionArea[id]++;
+        const b = regionBox[id], kx = k % S, ky = (k / S) | 0;
+        if (kx < b.x0) b.x0 = kx; if (kx > b.x1) b.x1 = kx; if (ky < b.y0) b.y0 = ky; if (ky > b.y1) b.y1 = ky;
+      }
+    }
+  }
   maskCache.clear();
 }
 
@@ -460,7 +475,7 @@ function regionAt(x, y) {
       const xx = x + dx, yy = y + dy;
       if (xx < 0 || yy < 0 || xx >= S || yy >= S) continue;
       const id = labels[yy * S + xx];
-      if (id && regionArea[id] > 50) return id;
+      if (id && regionArea[id] > 12) return id;
     }
   }
   return 0;
