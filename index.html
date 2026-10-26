@@ -189,6 +189,7 @@ body.tablet #barA{ justify-content:center; gap:22px; }
 #sizeGrid button{ width:64px; height:64px; border:none; border-radius:16px; background:#f4f8ff; box-shadow:0 3px 0 rgba(0,0,0,.15); display:flex; align-items:center; justify-content:center; padding:0; cursor:pointer; touch-action:manipulation; flex:0 0 auto; }
 #sizeGrid button.on{ outline:4px solid #ff9f1c; background:#fff3d6; }
 @media (max-width:420px){ #sizeGrid{ gap:6px; padding:12px 10px; } #sizeGrid button{ width:56px; height:56px; } }
+#penRing{ position:absolute; display:none; pointer-events:none; border:2px solid rgba(40,40,40,.75); box-shadow:0 0 0 1px rgba(255,255,255,.9); border-radius:50%; z-index:4; box-sizing:border-box; }
 </style>
 </head>
 <body>
@@ -334,7 +335,7 @@ const S = Math.max(1024, Math.min(2048, Math.round(Math.min(screen.width, screen
 const GAP = Math.max(2, Math.round(S / 400));   // 線條加粗幾像素來補小缺口
 const LINE_PX = Math.round(S * 0.014);                  // 線稿的線寬（和 drawApple 的 lineWidth 一致）
 let FILL_R = GAP + Math.round(LINE_PX * 0.6);           // 顏色往黑線底下延伸的距離（每張線稿依線寬重算）
-const SIZES = [0.007, 0.015, 0.035, 0.07, 0.11];   // 五段粗細（相對畫布寬）：由細到粗
+const SIZES = [0.004, 0.012, 0.03, 0.06, 0.11];   // 五段粗細（相對畫布寬）：由細到粗
 const DOT_PX = [5, 10, 18, 28, 40];                     // 粗細按鈕上圓點大小
 
 const paint = $('paint'), live = $('live'), line = $('line'), objc = $('objc'), wrap = $('wrap'), stage = $('stage');
@@ -426,10 +427,11 @@ function dilate(src, w, h, r) {
 }
 
 // 讀線稿 → 加粗補洞 → 把每個封閉區域編號（flood fill）
+let wallAlpha = null;                                   // 匯入的細線稿：用加粗的版本算區域，畫面上仍顯示原本的細線
 function buildRegions() {
-  const d = nctx.getImageData(0, 0, S, S).data;
   const w0 = new Uint8Array(S * S);
-  for (let i = 0; i < S * S; i++) w0[i] = d[i * 4 + 3] > 80 ? 1 : 0;
+  if (wallAlpha) { for (let i = 0; i < S * S; i++) w0[i] = wallAlpha[i] > 80 ? 1 : 0; }
+  else { const d = nctx.getImageData(0, 0, S, S).data; for (let i = 0; i < S * S; i++) w0[i] = d[i * 4 + 3] > 80 ? 1 : 0; }
   wall = dilate(w0, S, S, GAP);
   labels = new Int32Array(S * S);
   const stack = new Int32Array(S * S);
@@ -750,10 +752,23 @@ function grow(sd, p) {
   }
 }
 // 畫一小段（有對稱時，兩條路徑各畫一次）
+let pf = 1;                                             // 觸控筆壓力 → 線條粗細倍率（手指＝1）
+let pfSm = 1;
+function setPressure(ev) {
+  if (ev.pointerType !== 'pen') { pf = 1; return; }
+  const p = ev.pressure > 0 ? ev.pressure : 0.4;
+  pfSm = pfSm * 0.4 + (0.3 + 1.0 * Math.pow(p, 0.85)) * 0.6; pf = pfSm;   // 輕壓＝細、用力＝粗，並做平滑避免忽粗忽細
+}
 function strokeSeg(a, b) {
   for (const pt of cur.paths) {
     const A = pt.mir ? mir(a) : a, B = pt.mir ? mir(b) : b;
-    bs = pt.bs; cur.brush.seg(pt.sd.sctx, A, B); pt.bs = bs;
+    bs = pt.bs;
+    if (pf !== 1) {
+      if (pt.lw == null) pt.lw = pt.sd.sctx.lineWidth;
+      pt.sd.sctx.lineWidth = pt.lw * pf;
+      if (bs && bs.w) { bs.w0 = bs.w0 || bs.w; bs.w = bs.w0 * pf; }
+    } else if (pt.lw != null) { pt.sd.sctx.lineWidth = pt.lw; if (bs && bs.w0) bs.w = bs.w0; }
+    cur.brush.seg(pt.sd.sctx, A, B); pt.bs = bs;
     grow(pt.sd, A); grow(pt.sd, B);
   }
 }
@@ -862,7 +877,7 @@ wrap.addEventListener('pointerdown', e => {
   if (state.tool === 'bucket') { bucketAt(p); return; }                    // 油漆桶：點一下填滿整個區域
   if (state.tool === 'stamp') { stampAt(p); return; }                       // 印章：點一下蓋一個
   if (state.tool === 'eraser') { pushUndo(0, 0, S, S); mode = 'erase'; eraseSeg(p, p); }
-  else { if (!startPaint(p)) return; mode = 'paint'; strokeSeg(p, p); schedule(); }
+  else { if (!startPaint(p)) return; mode = 'paint'; pfSm = e.pressure > 0 ? 0.3 + Math.pow(e.pressure, 0.85) : 0.8; setPressure(e); strokeSeg(p, p); schedule(); }
   activeId = e.pointerId; last = p;
   try { wrap.setPointerCapture(e.pointerId); } catch (_) {}
 });
@@ -872,11 +887,24 @@ wrap.addEventListener('pointermove', e => {
   const list = (e.getCoalescedEvents && e.getCoalescedEvents().length) ? e.getCoalescedEvents() : [e];
   for (const ev of list) {
     const p = toXY(ev);
-    if (mode === 'erase') eraseSeg(last, p); else if (mode === 'shape') shapeDrag(p); else strokeSeg(last, p);
+    if (mode === 'erase') eraseSeg(last, p); else if (mode === 'shape') shapeDrag(p); else { setPressure(ev); strokeSeg(last, p); }
     last = p;
   }
   if (mode === 'paint') schedule();
 });
+// 觸控筆懸在畫布上時，顯示一圈目前筆刷大小的圓框，方便對準細小的地方
+const penRing = document.createElement('div');
+penRing.id = 'penRing'; stage.appendChild(penRing);
+function ringAt(e) {
+  if (e.pointerType !== 'pen' || e.buttons !== 0 || state.tool === 'shape' || state.tool === 'bucket') { penRing.style.display = 'none'; return; }
+  const r = wrap.getBoundingClientRect(), sr = stage.getBoundingClientRect();
+  let d = brushWidth() * r.width / S * (state.tool === 'eraser' ? 1.5 : 1); d = Math.max(6, d);
+  penRing.style.cssText = 'display:block;width:' + d + 'px;height:' + d + 'px;left:' + (e.clientX - sr.left - d / 2) + 'px;top:' + (e.clientY - sr.top - d / 2) + 'px';
+}
+wrap.addEventListener('pointermove', ringAt);
+wrap.addEventListener('pointerleave', () => { penRing.style.display = 'none'; });
+wrap.addEventListener('pointerdown', () => { penRing.style.display = 'none'; });
+wrap.addEventListener('contextmenu', e => e.preventDefault());
 function endStroke(e) {
   if (e.pointerId !== activeId) return;
   if (mode === 'paint') commitPaint();
@@ -1519,6 +1547,7 @@ document.addEventListener('gesturestart', e => e.preventDefault());
 document.addEventListener('touchmove', e => { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
 
 /* ===================== 9. 線稿頁面與匯入（圖片只在本機處理，不會上傳） ===================== */
+const VIS_MIN = Math.round(S * 0.0025);               // 畫面上線條的最細寬度
 const MIN_LINE = Math.round(S * 0.008);              // 匯入線稿的最細線寬，太細會自動加粗
 const pages = [{ name: '蘋果', draw: drawApple, key: 'apple', folderId: 'cat:fruit' }, { name: '空白畫布', blank: true, key: 'blank' }];   // 頁面清單：內建 + 匯入
 const IMG_CATS = {"animal": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20], "vehicle": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20], "flower": [1, 2, 3, 4, 5, 6, 7, 8, 9], "food": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15, 16, 17, 18, 19, 20, 21], "fruit": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17], "music": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], "sport": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]};
@@ -1529,7 +1558,7 @@ let folders = [];                                    // 資料夾 { id, name, cr
 let curFolder = null;                                // 首頁目前瀏覽的資料夾（null＝最外層）
 let curPage = -1;
 
-function setLineWidth(px) { FILL_R = GAP + Math.max(1, Math.round(px * 0.6)); }
+function setLineWidth(px, tw) { FILL_R = GAP + Math.max(1, Math.round(tw != null && tw !== px ? (tw + px) / 2 : px * 0.6)); }   // px＝畫面上線寬，tw＝算區域用的線寬
 
 // 空白畫布：沒有線稿，整張都能畫
 function setBlank() {
@@ -1555,11 +1584,12 @@ async function loadPage(i) {
   await new Promise(r => setTimeout(r, 30));          // 讓轉圈圈先顯示
   try {
     const pg = pages[i];
+    wallAlpha = null;
     if (pg.blank) setBlank();
     else {
       if (pg.draw) { pg.draw(nctx); setLineWidth(LINE_PX); }
       else if (pg.art) { drawArt(pg.art); setLineWidth(LINE_PX); }
-      else setLineWidth(await drawImported(pg.src ? await (await fetch(pg.src)).blob() : pg.blob));
+      else setLineWidth(...await drawImported(pg.src ? await (await fetch(pg.src)).blob() : pg.blob));
       buildRegions();
     }
     pctx.clearRect(0, 0, S, S); lctx.clearRect(0, 0, S, S);
@@ -1612,14 +1642,24 @@ async function drawImported(file) {
   }
   x.putImageData(id, 0, 0);
   // 3. 量線寬；太細就加粗（同時讓補洞和上色更穩）
-  let t = measureLine(d);
+  // 畫面上盡量維持原稿的細線（只在太細、會看不清楚時才稍微加粗）；
+  // 算「能塗的區域」則用另外加粗的線，這樣小縫隙不會漏色、上色也穩
+  const t = measureLine(d);
   nctx.clearRect(0, 0, S, S);
+  let tv = t;
+  if (t < VIS_MIN) { const r = Math.min(Math.ceil((VIS_MIN - t) / 2), 2); thicken(nctx, c, r); tv = t + 2 * r; }
+  else nctx.drawImage(c, 0, 0);
+  let tw = tv; wallAlpha = null;
   if (t < MIN_LINE) {
     const r = Math.min(Math.ceil((MIN_LINE - t) / 2), Math.round(S * 0.01));
-    thicken(nctx, c, r);
-    t += 2 * r;
-  } else nctx.drawImage(c, 0, 0);
-  return t;
+    const wc = document.createElement('canvas'); wc.width = wc.height = S;
+    const wx = wc.getContext('2d', { willReadFrequently: true });
+    thicken(wx, c, r);
+    const wd = wx.getImageData(0, 0, S, S).data; wallAlpha = new Uint8Array(S * S);
+    for (let i = 0; i < S * S; i++) wallAlpha[i] = wd[i * 4 + 3];
+    tw = t + 2 * r;
+  }
+  return [tv, tw];
 }
 
 // 估計平均線寬：線條面積 ÷ 邊緣長度 × 2
