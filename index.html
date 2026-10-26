@@ -467,6 +467,24 @@ function buildRegions() {
       }
     }
   }
+  // 兩條線之間完全封閉的細白縫（碰不到任何大區域）：各自成為獨立區域，點得到、也塗得滿
+  for (let i = 0; i < S * S; i++) {
+    if (labels[i] || w0[i]) continue;
+    n++;
+    let sp = 0, area = 0, x0 = S, y0 = S, x1 = 0, y1 = 0;
+    stack[sp++] = i; labels[i] = n;
+    while (sp) {
+      const j = stack[--sp], x = j % S, y = (j / S) | 0;
+      area++;
+      if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+      let k;
+      if (x > 0     && !w0[k = j - 1] && !labels[k]) { labels[k] = n; stack[sp++] = k; }
+      if (x < S - 1 && !w0[k = j + 1] && !labels[k]) { labels[k] = n; stack[sp++] = k; }
+      if (y > 0     && !w0[k = j - S] && !labels[k]) { labels[k] = n; stack[sp++] = k; }
+      if (y < S - 1 && !w0[k = j + S] && !labels[k]) { labels[k] = n; stack[sp++] = k; }
+    }
+    regionArea.push(area); regionBox.push({ x0, y0, x1, y1 });
+  }
   maskCache.clear();
 }
 
@@ -841,6 +859,7 @@ wrap.addEventListener('pointerdown', e => {
     try { wrap.setPointerCapture(e.pointerId); } catch (_) {}
     return;
   }
+  if (state.tool === 'bucket') { bucketAt(p); return; }                    // 油漆桶：點一下填滿整個區域
   if (state.tool === 'stamp') { stampAt(p); return; }                       // 印章：點一下蓋一個
   if (state.tool === 'eraser') { pushUndo(0, 0, S, S); mode = 'erase'; eraseSeg(p, p); }
   else { if (!startPaint(p)) return; mode = 'paint'; strokeSeg(p, p); schedule(); }
@@ -1099,6 +1118,19 @@ const STAMPS = (() => {
   };
 })();
 state.stamp = 'star';
+function bucketAt(p) {
+  const g = ++undoGroup; let did = false;
+  for (const q of (state.sym ? [p, mir(p)] : [p])) {
+    const id = regionAt(q.x, q.y); if (!id) continue;
+    const m = getMask(id);
+    pushUndo(m.x, m.y, m.w, m.h, g);
+    const t = document.createElement('canvas'); t.width = m.w; t.height = m.h;
+    const c = t.getContext('2d'); c.fillStyle = state.color; c.fillRect(0, 0, m.w, m.h);
+    c.globalCompositeOperation = 'destination-in'; c.drawImage(m.canvas, 0, 0);
+    pctx.drawImage(t, m.x, m.y); did = true;
+  }
+  if (did) { sfxPop(); markDirty(); }
+}
 function stampAt(p) {
   const g = ++undoGroup, ang = rnd(-0.35, 0.35); let did = false;
   for (const [q, isMir] of (state.sym ? [[p, false], [mir(p), true]] : [[p, false]])) if (stampOne(q, isMir ? -ang : ang, isMir, g)) did = true;
@@ -1197,6 +1229,12 @@ for (const k of Object.keys(BRUSHES)) {
   b.onclick = () => { setTool(k); $('brushOverlay').classList.remove('show'); };
   $('brushGrid').appendChild(b); brushItems[k] = b;
 }
+{
+  const b = document.createElement('button');                // 🪣 油漆桶：點一下整個區域填滿（細縫也能一次塗滿）
+  b.className = 't'; b.textContent = '🪣'; b.setAttribute('aria-label', '油漆桶');
+  b.onclick = () => { setTool('bucket'); $('brushOverlay').classList.remove('show'); };
+  $('brushGrid').appendChild(b); brushItems.bucket = b;
+}
 brushBtn.onclick = () => $('brushOverlay').classList.add('show');
 const stampBtn = document.createElement('button');   // 印章
 stampBtn.className = 't'; stampBtn.setAttribute('aria-label', '印章');
@@ -1239,7 +1277,7 @@ $('brushOverlay').onclick = e => { if (e.target.id === 'brushOverlay') e.current
 const BRUSH_NAMES = { crayon: '蠟筆', marker: '麥克筆', pencil: '鉛筆', water: '水彩筆', rainbow: '彩虹筆', spray: '噴漆', glitter: '亮粉', confetti: '彩紙', star: '星星筆', heart: '愛心筆' };
 function updateExtra() {
   const t = state.tool;
-  $('xBrush').textContent = t === 'shape' ? '🔷 形狀' : t === 'stamp' ? STAMPS[state.stamp].icon + ' 印章' : t === 'eraser' ? '🧽 橡皮擦' : BRUSHES[t].icon + ' ' + (BRUSH_NAMES[t] || '');
+  $('xBrush').textContent = t === 'bucket' ? '🪣 油漆桶' : t === 'shape' ? '🔷 形狀' : t === 'stamp' ? STAMPS[state.stamp].icon + ' 印章' : t === 'eraser' ? '🧽 橡皮擦' : BRUSHES[t].icon + ' ' + (BRUSH_NAMES[t] || '');
 }
 $('xBrush').onclick = () => $(state.tool === 'shape' ? 'shapeOverlay' : state.tool === 'stamp' ? 'stampOverlay' : 'brushOverlay').classList.add('show');
 function dailyColors() {                              // 每天固定的一組推薦色（依日期變化）
@@ -1250,8 +1288,8 @@ $('brushOverlay').onclick = e => { if (e.target.id === 'brushOverlay') e.current
 function setTool(k) {
   if (k !== 'shape') flattenObjects();                 // 離開形狀模式就固定到畫布上
   state.tool = k;
-  if (k !== 'eraser' && k !== 'stamp' && k !== 'shape') state.lastBrush = k;
-  brushBtn.textContent = BRUSHES[state.lastBrush].icon;
+  if (k !== 'eraser' && k !== 'stamp' && k !== 'shape' && k !== 'bucket') state.lastBrush = k;
+  brushBtn.textContent = k === 'bucket' ? '🪣' : BRUSHES[state.lastBrush].icon;
   stampBtn.textContent = STAMPS[state.stamp].icon;
   brushBtn.classList.toggle('on', k !== 'eraser' && k !== 'stamp' && k !== 'shape');
   shapeBtn.classList.toggle('on', k === 'shape');
