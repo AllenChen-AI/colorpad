@@ -190,6 +190,9 @@ body.tablet #barA{ justify-content:center; gap:22px; }
 #sizeGrid button.on{ outline:4px solid #ff9f1c; background:#fff3d6; }
 @media (max-width:420px){ #sizeGrid{ gap:6px; padding:12px 10px; } #sizeGrid button{ width:56px; height:56px; } }
 #penRing{ position:absolute; display:none; pointer-events:none; border:2px solid rgba(40,40,40,.75); box-shadow:0 0 0 1px rgba(255,255,255,.9); border-radius:50%; z-index:4; box-sizing:border-box; }
+#zin{ position:absolute; inset:0; transform-origin:0 0; will-change:transform; }
+#zoomReset{ position:absolute; display:none; right:8px; top:8px; width:52px; height:52px; min-width:52px; min-height:52px; font-size:26px; z-index:6; border-radius:14px; background:#ffe08a; }
+#zoomReset.show{ display:flex; }
 </style>
 </head>
 <body>
@@ -204,13 +207,14 @@ body.tablet #barA{ justify-content:center; gap:22px; }
   </div>
   <div id="stage">
     <div id="objBar"><button class="t" id="objDel" aria-label="刪除">🗑️</button><button class="t" id="objCopy" aria-label="複製">📋</button><button class="t" id="objFront" aria-label="移到最前面">⬆️</button><button class="t" id="objOk" aria-label="放好">✔️</button></div>
-    <div id="wrap">
+    <div id="wrap"><div id="zin">
       <canvas id="paint"></canvas>  <!-- 顏料層（最下） -->
       <canvas id="live"></canvas>   <!-- 正在畫的這一筆 -->
       <canvas id="objc"></canvas>   <!-- 幾何形狀物件（可移動、縮放、旋轉） -->
       <canvas id="line"></canvas>   <!-- 線稿層（最上） -->
       <div id="symLine"></div>
-    </div>
+    </div></div>
+    <button id="zoomReset" class="t" aria-label="回到全畫面">🔍</button>
   </div>
   <div id="side"><div id="palette"></div><div id="extra"><div class="xt">目前的筆</div><button id="xBrush"></button><div class="xt">🌈 今日推薦色</div><div id="xDaily"></div></div></div>
   <div class="bar" id="barB">
@@ -491,22 +495,32 @@ function buildRegions() {
 }
 
 // 找手指所在的區域；按在黑線上時，往外找最近的區域
+let penDown = false;                                    // 這一下是不是觸控筆
 function regionAt(x, y) {
   x = Math.round(x); y = Math.round(y);
-  const R = Math.round(S * 0.02);
-  for (let r = 0; r <= R; r++) {
-    for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
-      if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
-      const xx = x + dx, yy = y + dy;
-      if (xx < 0 || yy < 0 || xx >= S || yy >= S) continue;
+  if (x < 0 || y < 0 || x >= S || y >= S) return 0;
+  const hit = labels[y * S + x];
+  if (hit && regionArea[hit] > 12) return hit;            // 正好點在區域裡：就是它
+  if (penDown) return 0;                                  // 觸控筆很準：點在線上就不上色
+  // 手指點在線上：找附近最近的區域；距離差不多時，選面積小的（通常是圖案裡面，不是外面的大背景）
+  const R = Math.round(S * 0.02), tol = S * 0.006, best = new Map();
+  for (let dy = -R; dy <= R; dy++) {
+    const yy = y + dy; if (yy < 0 || yy >= S) continue;
+    for (let dx = -R; dx <= R; dx++) {
+      const xx = x + dx; if (xx < 0 || xx >= S) continue;
       const id = labels[yy * S + xx];
-      if (id && regionArea[id] > 12) return id;
+      if (!id || regionArea[id] <= 12) continue;
+      const d2 = dx * dx + dy * dy; if (d2 > R * R) continue;
+      const o = best.get(id); if (o === undefined || d2 < o) best.set(id, d2);
     }
   }
-  return 0;
+  if (!best.size) return 0;
+  let dmin = Infinity; for (const d2 of best.values()) if (d2 < dmin) dmin = d2;
+  dmin = Math.sqrt(dmin);
+  let pick = 0, pa = Infinity;
+  for (const [id, d2] of best) if (Math.sqrt(d2) <= dmin + tol && regionArea[id] < pa) { pick = id; pa = regionArea[id]; }
+  return pick;
 }
-
-// 產生區域遮罩（稍微擴大到黑線底下，避免顏色和線之間留白縫）
 function getMask(id) {
   if (maskCache.has(id)) return maskCache.get(id);
   if (regionArea[id] === S * S) {                       // 空白畫布：整張都能畫
@@ -860,13 +874,63 @@ function accept(e) {
   }
   return true;
 }
+const zin = $('zin');
+const Z = { k: 1, tx: 0, ty: 0 };                       // 縮放倍數與位移（畫面座標）
+function applyZoom() {
+  const w = wrap.clientWidth, h = wrap.clientHeight;
+  Z.k = Math.max(1, Math.min(4, Z.k));
+  Z.tx = Math.min(0, Math.max(w * (1 - Z.k), Z.tx)); Z.ty = Math.min(0, Math.max(h * (1 - Z.k), Z.ty));
+  zin.style.transform = Z.k === 1 ? '' : 'translate(' + Z.tx + 'px,' + Z.ty + 'px) scale(' + Z.k + ')';
+  $('zoomReset').classList.toggle('show', Z.k > 1.02);
+}
+function resetZoom() { Z.k = 1; Z.tx = Z.ty = 0; applyZoom(); }
+$('zoomReset').onclick = resetZoom;
+const touches = new Map();                              // 目前按著的手指
+let pinch = null;
+function cancelStroke() {                               // 第二根手指放下：取消剛才那一筆，改成縮放
+  if (mode === 'paint') { lctx.clearRect(0, 0, S, S); cur.paths = []; cur.sides = []; }
+  else if (mode === 'erase') undo();
+  else if (mode === 'shape') drag = null;
+  activeId = null; mode = null;
+}
+function pinchStart() {
+  const [a, b] = [...touches.values()], r = wrap.getBoundingClientRect();
+  const cx = (a.x + b.x) / 2 - r.left, cy = (a.y + b.y) / 2 - r.top;
+  pinch = { d0: Math.hypot(a.x - b.x, a.y - b.y) || 1, k0: Z.k, ux: (cx - Z.tx) / Z.k, uy: (cy - Z.ty) / Z.k };   // ux,uy＝兩指中心下方的畫面點
+}
+function pinchMove() {
+  const [a, b] = [...touches.values()], r = wrap.getBoundingClientRect();
+  const cx = (a.x + b.x) / 2 - r.left, cy = (a.y + b.y) / 2 - r.top;
+  Z.k = pinch.k0 * Math.hypot(a.x - b.x, a.y - b.y) / pinch.d0; Z.k = Math.max(1, Math.min(4, Z.k));
+  Z.tx = cx - pinch.ux * Z.k; Z.ty = cy - pinch.uy * Z.k; applyZoom();
+}
+wrap.addEventListener('pointerdown', e => {              // 手指追蹤（放在作畫處理之前）
+  if (e.pointerType !== 'touch' || performance.now() - lastPen < 1500) return;
+  touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (touches.size === 2) { cancelStroke(); pinchStart(); }
+  try { wrap.setPointerCapture(e.pointerId); } catch (_) {}
+}, true);
+wrap.addEventListener('pointermove', e => {
+  const t = touches.get(e.pointerId); if (!t) return;
+  t.x = e.clientX; t.y = e.clientY;
+  if (pinch && touches.size >= 2) pinchMove();
+}, true);
+for (const n of ['pointerup', 'pointercancel']) wrap.addEventListener(n, e => {
+  touches.delete(e.pointerId); if (touches.size < 2) pinch = null;
+}, true);
+wrap.addEventListener('wheel', e => {                   // 滑鼠滾輪／觸控板（桌機測試用）
+  e.preventDefault();
+  const r = wrap.getBoundingClientRect(), cx = e.clientX - r.left, cy = e.clientY - r.top, ux = (cx - Z.tx) / Z.k, uy = (cy - Z.ty) / Z.k;
+  Z.k *= Math.exp(-e.deltaY * 0.002); Z.k = Math.max(1, Math.min(4, Z.k)); Z.tx = cx - ux * Z.k; Z.ty = cy - uy * Z.k; applyZoom();
+}, { passive: false });
 function toXY(e) {
-  const r = wrap.getBoundingClientRect();
+  const r = zin.getBoundingClientRect();
   return { x: (e.clientX - r.left) * S / r.width, y: (e.clientY - r.top) * S / r.height };
 }
 wrap.addEventListener('pointerdown', e => {
   e.preventDefault();
-  if (!labels || !accept(e)) return;
+  if (!labels || !accept(e) || touches.size >= 2) return;
+  penDown = e.pointerType === 'pen';
   const p = toXY(e);
   if (state.tool === 'shape') {                                            // 形狀：選取、移動、縮放、旋轉
     if (!shapeDown(p)) return;
@@ -897,7 +961,7 @@ const penRing = document.createElement('div');
 penRing.id = 'penRing'; stage.appendChild(penRing);
 function ringAt(e) {
   if (e.pointerType !== 'pen' || e.buttons !== 0 || state.tool === 'shape' || state.tool === 'bucket') { penRing.style.display = 'none'; return; }
-  const r = wrap.getBoundingClientRect(), sr = stage.getBoundingClientRect();
+  const r = zin.getBoundingClientRect(), sr = stage.getBoundingClientRect();
   let d = brushWidth() * r.width / S * (state.tool === 'eraser' ? 1.5 : 1); d = Math.max(6, d);
   penRing.style.cssText = 'display:block;width:' + d + 'px;height:' + d + 'px;left:' + (e.clientX - sr.left - d / 2) + 'px;top:' + (e.clientY - sr.top - d / 2) + 'px';
 }
@@ -1527,7 +1591,7 @@ function fit() {
   stage.style.paddingLeft = bw ? bw + 'px' : '';
   const r = stage.getBoundingClientRect();
   const s = Math.max(100, Math.floor(Math.min(r.width - bw, r.height) - 16));
-  wrap.style.width = wrap.style.height = s + 'px';
+  wrap.style.width = wrap.style.height = s + 'px'; if (typeof resetZoom === 'function') resetZoom();
   barB.style.left = inStage ? Math.max(6, Math.round(bw + (r.width - bw - s) / 2 - barB.offsetWidth - 10)) + 'px' : '';   // 筆刷欄貼著畫布左邊
 }
 function layout() {
@@ -1597,7 +1661,7 @@ async function loadPage(i) {
     await restoreDraft(pg);                           // 讀回上次畫到一半的內容
     pg.thumb = pg.blank ? null : makeThumb();
     if (pg.src) pg.thumb = pg.src;
-    curPage = i; curPg = pg; afterPage(pg);
+    curPage = i; curPg = pg; afterPage(pg); resetZoom();
     try { const k = draftKey(pg); if (k) localStorage.setItem('coloring-last', k); } catch (_) {}
     return true;
   } catch (err) {
