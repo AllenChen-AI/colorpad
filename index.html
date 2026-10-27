@@ -336,7 +336,8 @@ const SPLASH_UNTIL = performance.now() + 1500;
 const DPR = window.devicePixelRatio || 1;
 // 畫布內部解析度固定（依螢幕短邊 × DPR），轉螢幕只縮放顯示，不會變形或遺失顏色
 const S = Math.max(1024, Math.min(2048, Math.round(Math.min(screen.width, screen.height) * DPR)));
-const GAP = Math.max(2, Math.round(S / 400));   // 線條加粗幾像素來補小缺口
+const GAP_DEF = Math.max(2, Math.round(S / 400));
+let GAP = GAP_DEF;                                      // 補缺口的加粗量（匯入的細線稿會依線寬縮小，避免把小區域吃掉）   // 線條加粗幾像素來補小缺口
 const LINE_PX = Math.round(S * 0.014);                  // 線稿的線寬（和 drawApple 的 lineWidth 一致）
 let FILL_R = GAP + Math.round(LINE_PX * 0.6);           // 顏色往黑線底下延伸的距離（每張線稿依線寬重算）
 const SIZES = [0.004, 0.012, 0.03, 0.06, 0.11];   // 五段粗細（相對畫布寬）：由細到粗
@@ -501,9 +502,8 @@ function regionAt(x, y) {
   if (x < 0 || y < 0 || x >= S || y >= S) return 0;
   const hit = labels[y * S + x];
   if (hit && regionArea[hit] > 12) return hit;            // 正好點在區域裡：就是它
-  if (penDown) return 0;                                  // 觸控筆很準：點在線上就不上色
   // 手指點在線上：找附近最近的區域；距離差不多時，選面積小的（通常是圖案裡面，不是外面的大背景）
-  const R = Math.round(S * 0.02), tol = S * 0.006, best = new Map();
+  const R = Math.round(S * (penDown ? 0.006 : 0.02)), tol = S * (penDown ? 0.002 : 0.006), best = new Map();   // 觸控筆準，容許範圍小（約 1.5 毫米）；手指大一點
   for (let dy = -R; dy <= R; dy++) {
     const yy = y + dy; if (yy < 0 || yy >= S) continue;
     for (let dx = -R; dx <= R; dx++) {
@@ -1648,7 +1648,7 @@ async function loadPage(i) {
   await new Promise(r => setTimeout(r, 30));          // 讓轉圈圈先顯示
   try {
     const pg = pages[i];
-    wallAlpha = null;
+    wallAlpha = null; GAP = GAP_DEF;
     if (pg.blank) setBlank();
     else {
       if (pg.draw) { pg.draw(nctx); setLineWidth(LINE_PX); }
@@ -1713,16 +1713,9 @@ async function drawImported(file) {
   let tv = t;
   if (t < VIS_MIN) { const r = Math.min(Math.ceil((VIS_MIN - t) / 2), 2); thicken(nctx, c, r); tv = t + 2 * r; }
   else nctx.drawImage(c, 0, 0);
-  let tw = tv; wallAlpha = null;
-  if (t < MIN_LINE) {
-    const r = Math.min(Math.ceil((MIN_LINE - t) / 2), Math.round(S * 0.01));
-    const wc = document.createElement('canvas'); wc.width = wc.height = S;
-    const wx = wc.getContext('2d', { willReadFrequently: true });
-    thicken(wx, c, r);
-    const wd = wx.getImageData(0, 0, S, S).data; wallAlpha = new Uint8Array(S * S);
-    for (let i = 0; i < S * S; i++) wallAlpha[i] = wd[i * 4 + 3];
-    tw = t + 2 * r;
-  }
+  // 區域判斷用跟畫面一樣的線；補缺口的量依線寬決定（細線 → 小，細部才不會被吃掉）
+  wallAlpha = null; GAP = Math.max(2, Math.min(GAP_DEF, Math.round(t * 0.6)));
+  const tw = tv;
   return [tv, tw];
 }
 
