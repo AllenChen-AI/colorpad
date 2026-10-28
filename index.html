@@ -1622,7 +1622,7 @@ let folders = [];                                    // 資料夾 { id, name, cr
 let curFolder = null;                                // 首頁目前瀏覽的資料夾（null＝最外層）
 let curPage = -1;
 
-function setLineWidth(px, tw) { FILL_R = GAP + Math.max(1, Math.round(tw != null && tw !== px ? (tw + px) / 2 : px * 0.6)); }   // px＝畫面上線寬，tw＝算區域用的線寬
+function setLineWidth(px, tw) { FILL_R = tw != null && (tw !== px || px < S * 0.003) ? Math.max(1, Math.round(tw / 2)) : GAP + Math.max(1, Math.round(px * 0.6)); }   // 細線稿：邊界已貼著加粗的線，顏色只要補到線的中心就好（膨脹是方形，斜向會多出 1.4 倍），不要超出線外   // px＝畫面上線寬，tw＝算區域用的線寬
 
 // 空白畫布：沒有線稿，整張都能畫
 function setBlank() {
@@ -1706,16 +1706,22 @@ async function drawImported(file) {
   }
   x.putImageData(id, 0, 0);
   // 3. 量線寬；太細就加粗（同時讓補洞和上色更穩）
-  // 畫面上盡量維持原稿的細線（只在太細、會看不清楚時才稍微加粗）；
-  // 算「能塗的區域」則用另外加粗的線，這樣小縫隙不會漏色、上色也穩
+  // 畫面上完全維持原稿的線條粗細，不加粗；
+  // 「區域判斷」另外用稍微加粗的線（只在太細、容易漏色時），補缺口的量也依線寬決定，細部才不會被吃掉
   const t = measureLine(d);
-  nctx.clearRect(0, 0, S, S);
-  let tv = t;
-  if (t < VIS_MIN) { const r = Math.min(Math.ceil((VIS_MIN - t) / 2), 2); thicken(nctx, c, r); tv = t + 2 * r; }
-  else nctx.drawImage(c, 0, 0);
-  // 區域判斷用跟畫面一樣的線；補缺口的量依線寬決定（細線 → 小，細部才不會被吃掉）
+  nctx.clearRect(0, 0, S, S); nctx.drawImage(c, 0, 0);
+  const tv = t; let tw = t;
   wallAlpha = null; GAP = Math.max(2, Math.min(GAP_DEF, Math.round(t * 0.6)));
-  const tw = tv;
+  const WALL_MIN = 0;                                   // 不再額外加粗（加粗會把眉毛、眼睛這種小區域切碎）
+  if (t < WALL_MIN) {
+    const r = Math.min(Math.ceil((WALL_MIN - t) / 2), 2);
+    const wc = document.createElement('canvas'); wc.width = wc.height = S;
+    const wx = wc.getContext('2d', { willReadFrequently: true });
+    thicken(wx, c, r);
+    const wd = wx.getImageData(0, 0, S, S).data; wallAlpha = new Uint8Array(S * S);
+    for (let k = 0; k < S * S; k++) wallAlpha[k] = wd[k * 4 + 3];
+    tw = t + 2 * r;
+  }
   return [tv, tw];
 }
 
