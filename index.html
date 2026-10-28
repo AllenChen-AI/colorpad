@@ -234,7 +234,7 @@ body.tablet #barA{ justify-content:center; gap:22px; }
 <div id="moveOverlay" class="ov"><div id="moveBox"></div></div>
 <div id="nameOverlay" class="ov"><div id="nameBox"><div id="nameIcon">📁</div><input id="nameIn" maxlength="20" placeholder="名稱" autocomplete="off"><div id="nameBtns"><button class="t" id="nameNo" aria-label="取消">❌</button><button class="t" id="nameYes" aria-label="確定">✅</button></div></div></div>
 <div id="pickOverlay" class="ov"><div id="pickBox"><canvas id="pkSV"></canvas><canvas id="pkHue"></canvas><div id="pkRow"><div id="pkPrev"></div><button class="t" id="pkNo" aria-label="取消">❌</button><button class="t" id="pkDel" aria-label="刪除顏色">🗑️</button><button class="t" id="pkYes" aria-label="確定">✅</button></div></div></div>
-<input type="file" id="fileIn" accept="image/png,image/jpeg" hidden>
+<input type="file" id="fileIn" accept="image/png,image/jpeg" multiple hidden>
 <canvas id="fx"></canvas><div id="praise"></div>
 <div id="cheer" class="ov"><div class="star">⭐</div></div>
 <div id="loading" class="ov show"><img src="logo.png" alt=""><div class="nm">揚名 ColorPad</div><div class="spin">🎨</div></div>
@@ -1993,18 +1993,50 @@ async function saveNew(pg) {
 }
 
 $('fileIn').onchange = async e => {
-  const f = e.target.files && e.target.files[0];
+  const files = [...(e.target.files || [])];
   e.target.value = '';                                 // 讓同一張圖可以再選一次
-  if (!f) return;
-  $('homeOverlay').classList.remove('show');
+  if (!files.length) return;
+  const folderId = typeof curFolder === 'number' ? curFolder : null;   // 匯入到目前瀏覽的資料夾
+  if (files.length === 1) {                            // 只選一張：匯入後直接打開來畫
+    $('homeOverlay').classList.remove('show');
+    $('loading').classList.add('show');
+    let blob;
+    try { blob = await normalizeFile(files[0]); }
+    catch (err) { console.warn(err); $('loading').classList.remove('show'); cheer('❌'); return; }
+    const pg = { name: '匯入', blob, created: Date.now(), folderId };
+    pages.push(pg);
+    if (await loadPage(pages.length - 1)) saveNew(pg);
+    return;
+  }
+  // 一次選很多張：依序匯入，留在清單畫面，最後告訴你成功幾張
   $('loading').classList.add('show');
-  let blob;
-  try { blob = await normalizeFile(f); }
-  catch (err) { console.warn(err); $('loading').classList.remove('show'); cheer('❌'); return; }
-  const pg = { name: '匯入', blob, created: Date.now(), folderId: typeof curFolder === 'number' ? curFolder : null };   // 匯入到目前瀏覽的資料夾
-  pages.push(pg);
-  if (await loadPage(pages.length - 1)) saveNew(pg);
+  let ok = 0, bad = 0;
+  for (const f of files) {
+    try {
+      const blob = await normalizeFile(f);
+      if (!(await looksLikeLineArt(blob))) throw new Error('不像白底線稿');
+      const pg = { name: '匯入', blob, created: Date.now(), folderId };
+      await saveNew(pg);
+      if (pg.id == null) throw new Error('存檔失敗');
+      pages.push(pg); ok++;
+    } catch (err) { console.warn(err); bad++; }
+    $('loading').querySelector('.nm').textContent = '匯入中 ' + (ok + bad) + ' / ' + files.length;
+  }
+  $('loading').querySelector('.nm').textContent = '揚名 ColorPad';
+  $('loading').classList.remove('show');
+  renderPages();
+  showHint('已匯入 ' + ok + ' 張' + (bad ? '，' + bad + ' 張無法使用' : ''));
+  cheer(bad && !ok ? '❌' : '✅');
 };
+// 很暗的照片、全黑的圖不是線稿：快速檢查（縮小後看深色比例）
+async function looksLikeLineArt(blob) {
+  const img = await loadImg(blob), c = document.createElement('canvas'); c.width = c.height = 128;
+  const x = c.getContext('2d', { willReadFrequently: true }); x.fillStyle = '#fff'; x.fillRect(0, 0, 128, 128);
+  const k = Math.min(128 / img.naturalWidth, 128 / img.naturalHeight); x.drawImage(img, 0, 0, img.naturalWidth * k, img.naturalHeight * k);
+  const d = x.getImageData(0, 0, 128, 128).data; let dark = 0, ink = 0;
+  for (let i = 0; i < d.length; i += 4) { const L = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]; if (L < 90) dark++; if (L < 200) ink++; }
+  return dark / (128 * 128) < 0.5 && ink > 20;
+}
 
 /* ---- 輸入名稱（資料夾命名用） ---- */
 let nameRes = null;
