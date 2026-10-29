@@ -1769,6 +1769,25 @@ function folderCardInner(b, icon, name) {
 }
 
 // 首頁：最外層＝資料夾＋未分類的線稿；進入資料夾後只看那個資料夾（長按可管理）
+// 匯入的圖片縮圖：不用先打開，直接從圖檔縮小（白底、等比、置中）
+async function makeBlobThumb(blob) {
+  const img = await loadImg(blob), T = 300, c = document.createElement('canvas'); c.width = c.height = T;
+  const x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, T, T);
+  const m = T * 0.04, k = Math.min((T - 2 * m) / img.naturalWidth, (T - 2 * m) / img.naturalHeight), w = img.naturalWidth * k, h = img.naturalHeight * k;
+  x.imageSmoothingQuality = 'high'; x.drawImage(img, (T - w) / 2, (T - h) / 2, w, h);
+  return c.toDataURL('image/jpeg', 0.82);
+}
+let thumbQ = Promise.resolve();                         // 一張一張做，避免一次佔太多記憶體
+function ensureThumb(pg, btn) {
+  if (pg._thumbing) return; pg._thumbing = true;
+  thumbQ = thumbQ.then(async () => {
+    try {
+      pg.thumb = await makeBlobThumb(pg.blob);
+      if (pg.id != null) await DB.put('pages', pageRec(pg));
+      if (btn && btn.isConnected && !btn.querySelector('img')) { btn.textContent = ''; const im = document.createElement('img'); im.src = pg.thumb; im.alt = ''; im.draggable = false; btn.appendChild(im); }
+    } catch (err) { console.warn(err); pg._thumbing = false; }
+  });
+}
 function renderPages() {
   if (view === 'works') { renderWorks(); return; }
   if (curFolder != null && !folderOf(curFolder)) curFolder = null;
@@ -1805,7 +1824,7 @@ function renderPages() {
     if ((pg.draw || pg.art) && !pg.thumb) pg.thumb = quickThumb(pg);
     const dt = drafts.get(draftKey(pg)), src = dt ? dt.thumb : pg.thumb;      // 有畫過的，卡片顯示畫到一半的樣子
     if (src) { const im = document.createElement('img'); im.src = src; im.alt = ''; im.draggable = false; b.appendChild(im); }
-    else b.textContent = pg.blank ? '📄' : '🖼️';
+    else { b.textContent = pg.blank ? '📄' : '🖼️'; if (pg.blob) ensureThumb(pg, b); }   // 沒有縮圖的匯入圖，背景補做
     press(b, () => {
       $('homeOverlay').classList.remove('show');
       const k = pages.indexOf(pg);
@@ -2022,6 +2041,7 @@ $('fileIn').onchange = async e => {
       const blob = await normalizeFile(f);
       if (!(await looksLikeLineArt(blob))) throw new Error('不像白底線稿');
       const pg = { name: '匯入', blob, created: Date.now(), folderId };
+      try { pg.thumb = await makeBlobThumb(blob); } catch (_) {}
       await saveNew(pg);
       if (pg.id == null) throw new Error('存檔失敗');
       pages.push(pg); ok++;
